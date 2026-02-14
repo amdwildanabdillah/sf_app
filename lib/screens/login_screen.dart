@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sanadflow_mobile/screens/home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,169 +13,154 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
+  
+  // Controller buat Login Email (Windows Friendly)
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
 
-  // --- LOGIC LOGIN GOOGLE NATIVE ---
+  // LOGIN GOOGLE (Mungkin error di Windows tanpa config khusus)
   Future<void> _googleSignIn() async {
-    // Cek koneksi internet dulu (visual check aja)
     setState(() => _isLoading = true);
-
     try {
-      // 1. Web Client ID (Wajib buat Supabase, ambil dari Google Cloud)
-      // Pastikan ini ID yang tipe "Web application"
-      const webClientId = '965575022029-5404g6jidgr3ron6m8iqaphqe307vshe.apps.googleusercontent.com';
-
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        serverClientId: webClientId,
-      );
-      
-      // Proses Pilih Akun (Native Pop-up)
-      final googleUser = await googleSignIn.signIn();
-      
-      if (googleUser == null) {
-        setState(() => _isLoading = false);
-        return; // Batal
-      }
-
-      // Ambil Token
-      final googleAuth = await googleUser.authentication;
-      final accessToken = googleAuth.accessToken;
-      final idToken = googleAuth.idToken;
-
-      if (accessToken == null) {
-        throw 'Gagal mendapatkan token akses Google.';
-      }
-
-      // 2. Kirim ke Supabase
-      await Supabase.instance.client.auth.signInWithIdToken(
-        provider: OAuthProvider.google,
-        idToken: idToken ?? '',
-        accessToken: accessToken,
-      );
-
-      // 3. Masuk Home
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      }
-      
-    } on AuthException catch (e) {
-      if (mounted) _showError('Login Gagal: ${e.message}');
+      // Logic Google Sign In (Skip dulu kalau di Windows)
+      // await Supabase.instance.client.auth.signInWithOAuth(...)
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Google Login belum disetup buat Windows, pake Email dulu mas!")));
     } catch (e) {
-      // Handle Error 7 & 10 disini biar jelas
-      String msg = e.toString();
-      if (msg.contains('ApiException: 7')) {
-        msg = "Koneksi Bermasalah. Cek internet HP kamu.";
-      } else if (msg.contains('ApiException: 10')) {
-        msg = "Settingan SHA-1 Salah. Cek Google Cloud.";
-      }
-      if (mounted) _showError(msg);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
     }
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
+  // LOGIN EMAIL (SOLUSI WINDOWS)
+  Future<void> _emailSignIn() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Isi email & password dulu")));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final response = await Supabase.instance.client.auth.signInWithPassword(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+
+      if (response.user != null) {
+         if(mounted) {
+           Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
+         }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Login Gagal. Cek Email/Pass.")));
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212), // Background Gelap Vixel
-      body: SafeArea(
-        child: Center( // <-- BIAR TENGAH (Ala Puskeswan)
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center, // <-- RATA TENGAH
-              children: [
-                // LOGO ICON
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: const Icon(LucideIcons.waves, size: 50, color: Colors.white),
+      backgroundColor: const Color(0xFF121212),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // LOGO
+              Container(
+                width: 100, height: 100,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF2962FF),
+                  shape: BoxShape.circle,
                 ),
-                
-                const SizedBox(height: 24),
-                
-                // JUDUL
-                Text(
-                  'SanadFlow.',
-                  style: GoogleFonts.poppins(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Agregator Kajian Islam\nBerbasis Sanad Keilmuan',
-                  textAlign: TextAlign.center, // <-- TEKS RATA TENGAH
-                  style: GoogleFonts.poppins(color: Colors.grey, fontSize: 14),
-                ),
-                
-                const SizedBox(height: 60),
+                child: const Icon(LucideIcons.waves, size: 50, color: Colors.white),
+              ),
+              const SizedBox(height: 24),
+              Text("SANADFLOW", style: GoogleFonts.poppins(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 4)),
+              const SizedBox(height: 8),
+              Text("Masuk untuk melanjutkan", style: GoogleFonts.poppins(color: Colors.grey)),
+              
+              const SizedBox(height: 40),
 
-                // TOMBOL LOGIN GOOGLE
-                _isLoading 
-                  ? const CircularProgressIndicator(color: Color(0xFF2962FF))
-                  : SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton.icon(
-                        onPressed: _googleSignIn,
-                        // Link PNG Wikimedia yang Stabil
-                        icon: Image.network(
-                          'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png',
-                          height: 24,
-                        ),
-                        label: Text(
-                          'Masuk dengan Google',
-                          style: GoogleFonts.poppins(
-                            color: Colors.black, 
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                
-                const SizedBox(height: 24),
-                
-                // TOMBOL TAMU
-                TextButton(
-                  onPressed: () {
-                     Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (context) => const HomeScreen()),
-                    );
-                  },
-                  child: Text('Masuk Tanpa Login (Tamu)', style: GoogleFonts.poppins(color: Colors.grey[600])),
-                ),
+              // TOMBOL GOOGLE (Gak jalan di Windows tapi biarin buat UI)
+              _buildGoogleBtn(),
 
-                const SizedBox(height: 40),
-                Text('v1.0.0 Alpha • Vixel Creative', style: GoogleFonts.poppins(color: Colors.white12, fontSize: 10)),
-              ],
-            ),
+              const SizedBox(height: 30),
+              
+              // DIVIDER
+              Row(
+                children: [
+                  const Expanded(child: Divider(color: Colors.white24)),
+                  Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text("DEV LOGIN (WINDOWS)", style: GoogleFonts.poppins(color: Colors.white24, fontSize: 10))),
+                  const Expanded(child: Divider(color: Colors.white24)),
+                ],
+              ),
+              
+              const SizedBox(height: 20),
+
+              // FORM EMAIL (BUAT WINDOWS)
+              TextField(
+                controller: _emailController,
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDecor("Email", LucideIcons.mail),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDecor("Password", LucideIcons.lock),
+              ),
+              const SizedBox(height: 20),
+
+              // TOMBOL LOGIN EMAIL
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _emailSignIn,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white10,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))
+                  ),
+                  child: _isLoading 
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text("Masuk dengan Email", style: GoogleFonts.poppins(color: Colors.white)),
+                ),
+              )
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildGoogleBtn() {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton.icon(
+        onPressed: _googleSignIn,
+        icon: const Icon(LucideIcons.chrome, color: Colors.black), 
+        label: Text("Lanjutkan dengan Google", style: GoogleFonts.poppins(color: Colors.black, fontWeight: FontWeight.w600)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecor(String hint, IconData icon) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Colors.grey),
+      prefixIcon: Icon(icon, color: Colors.grey, size: 20),
+      filled: true,
+      fillColor: const Color(0xFF1E1E1E),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
     );
   }
 }
