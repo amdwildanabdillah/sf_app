@@ -61,7 +61,7 @@ class _ManageDaiScreenState extends State<ManageDaiScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            _inputField("Nama Ustadz / Dai", _nameController, icon: LucideIcons.user),
+            _inputField("Nama Penceramah", _nameController, icon: LucideIcons.user),
             const SizedBox(height: 16),
             _inputField("Bio Singkat", _bioController, maxLines: 3),
             const SizedBox(height: 16),

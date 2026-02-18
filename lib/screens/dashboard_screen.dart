@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:file_picker/file_picker.dart'; 
-import 'package:sanadflow_mobile/screens/admin_screen.dart'; // IMPORT ADMIN SCREEN BIAR BISA PINDAH
+import 'package:sanadflow_mobile/screens/admin_screen.dart'; // Pastikan import ini ada
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -18,11 +17,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _role = 'viewer'; 
   String _contributorStatus = 'none'; 
 
-  // Variabel Form Upload (Simpel)
-  final _titleController = TextEditingController();
-  final _descController = TextEditingController();
-  String _selectedCategory = 'Fiqih';
-
   @override
   void initState() {
     super.initState();
@@ -34,7 +28,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (user == null) return;
     
     // A. BACKDOOR DEVELOPER (JALUR KHUSUS)
-    // Kalau emailnya ini, langsung AUTO ADMIN tanpa tanya database (Biar gak kena lock RLS)
     final email = user!.email ?? '';
     if (email.contains('amd.wildanabdillah') || email.contains('vixel')) {
         if (mounted) {
@@ -44,7 +37,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 _isLoading = false;
             });
         }
-        return; // Selesai, gak usah tanya database
+        return; 
     }
 
     // B. JALUR RESMI (DATABASE)
@@ -53,7 +46,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .from('profiles')
           .select('role, contributor_status')
           .eq('id', user!.id)
-          .maybeSingle(); // Pakai maybeSingle biar gak error kalau kosong
+          .maybeSingle();
       
       if (mounted) {
         setState(() {
@@ -61,7 +54,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
              _role = data['role'] ?? 'viewer';
              _contributorStatus = data['contributor_status'] ?? 'none';
           } else {
-             // Kalau data profil gak ada, anggap viewer
              _role = 'viewer';
              _contributorStatus = 'none';
           }
@@ -69,21 +61,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       }
     } catch (e) {
-      // Kalau error koneksi/RLS, tetep anggap viewer
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // --- 2. LOGIC PENGAJUAN ---
+  // --- 2. LOGIC PENGAJUAN KONTRIBUTOR ---
   Future<void> _applyForContributor() async {
     setState(() => _isLoading = true);
     try {
-      // Update atau Insert (Upsert) biar aman buat user hantu
       await Supabase.instance.client.from('profiles').upsert({
         'id': user!.id,
         'email': user!.email,
         'contributor_status': 'pending',
-        'role': 'viewer' // Tetap viewer dulu sampe diacc
+        'role': 'viewer'
       });
       
       if (mounted) {
@@ -101,7 +91,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // --- 3. UI UTAMA ---
+  // --- 3. LOGIC PIN / UNPIN (HIGHLIGHT) ---
+  Future<void> _togglePin(String id, bool currentStatus) async {
+    try {
+      await Supabase.instance.client.from('kajian').update({
+        'is_featured': !currentStatus // Balik statusnya
+      }).eq('id', id);
+      
+      setState(() {}); // Refresh UI Lokal (Trigger FutureBuilder ulang)
+      
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: !currentStatus ? Colors.green : Colors.orange,
+        content: Text(!currentStatus ? "Pinned! (Masuk Highlight)" : "Unpinned (Hapus dari Highlight)")
+      ));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Gagal update pin: $e")));
+    }
+  }
+
+  // --- 4. LOGIC HAPUS KONTEN ---
+  Future<void> _deleteKajian(String id) async {
+    // Dialog Konfirmasi
+    final confirm = await showDialog(
+      context: context, 
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text("Hapus Konten?", style: TextStyle(color: Colors.white)),
+        content: const Text("Tindakan ini tidak bisa dibatalkan.", style: TextStyle(color: Colors.grey)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("Batal")),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text("HAPUS", style: TextStyle(color: Colors.red))),
+        ],
+      )
+    );
+
+    if (confirm == true) {
+      try {
+        await Supabase.instance.client.from('kajian').delete().eq('id', id);
+        setState(() {}); // Refresh UI
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Konten dihapus.")));
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Gagal menghapus.")));
+      }
+    }
+  }
+
+  // --- UI UTAMA ---
   @override
   Widget build(BuildContext context) {
     if (_isLoading) return const Scaffold(backgroundColor: Color(0xFF121212), body: Center(child: CircularProgressIndicator()));
@@ -131,11 +166,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // TOMBOL UPLOAD (KALAU ADMIN, BUKA LAYAR ADMIN LENGKAP)
             _buildUploadCard(),
             
             const SizedBox(height: 30),
-            Text(_role == 'admin' ? "Semua Konten Masuk" : "Kajian Saya", style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(_role == 'admin' ? "Semua Konten Masuk" : "Kajian Saya", style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                IconButton(onPressed: () => setState((){}), icon: Icon(LucideIcons.refreshCw, color: Colors.grey, size: 18)) // Tombol Refresh Manual
+              ],
+            ),
             const SizedBox(height: 16),
             _buildVideoList(),
           ],
@@ -144,7 +184,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // --- VIEW: GEMBOK ---
+  // --- SUB-WIDGETS ---
+
   Widget _buildRestrictedView() {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
@@ -169,7 +210,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // --- VIEW: PENDING ---
   Widget _buildPendingView() {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
@@ -189,13 +229,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // --- WIDGET: CARD UPLOAD (BUTTON ONLY) ---
   Widget _buildUploadCard() {
     return GestureDetector(
-      onTap: () {
-        // NAVIGASI KE LAYAR UPLOAD LENGKAP (ADMIN SCREEN)
-        // Kita pakai AdminScreen yang sudah kamu buat buat handle upload
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminScreen()));
+      onTap: () async {
+        // Navigasi ke AdminScreen buat upload, tunggu hasil kembaliannya
+        final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminScreen()));
+        if (result == true) {
+          setState(() {}); // Refresh kalau ada upload baru
+        }
       },
       child: Container(
         padding: const EdgeInsets.all(20),
@@ -207,7 +248,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
              Column(
                crossAxisAlignment: CrossAxisAlignment.start,
                children: [
-                 Text("Upload Kajian Baru", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                 Text("Upload Konten Baru", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                  Text("Klik disini untuk mulai upload", style: GoogleFonts.poppins(color: Colors.grey, fontSize: 12)),
                ],
              )
@@ -217,10 +258,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // --- WIDGET: LIST VIDEO ---
   Widget _buildVideoList() {
     // Ambil Data pakai FutureBuilder
-    // Kita filter di Client biar aman
+    // Kita panggil kajian_lengkap view biar datanya lengkap kalau ada
+    // Tapi kalau belum ada view-nya, pake tabel kajian biasa gapapa
     final query = Supabase.instance.client.from('kajian').select().order('created_at', ascending: false);
 
     return FutureBuilder(
@@ -231,9 +272,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         var allData = snapshot.data as List<dynamic>;
         var displayedData = allData;
 
-        // Filter: Kalau bukan admin, cuma liat punya sendiri
+        // Filter: Kalau bukan admin, cuma liat video yang dia upload
         if (_role != 'admin') {
-           displayedData = allData.where((item) => item['dai_id'] == user!.id).toList();
+           displayedData = allData.where((item) => item['uploader_id'] == user!.id).toList();
         }
         
         if (displayedData.isEmpty) return Center(child: Text("Belum ada konten", style: GoogleFonts.poppins(color: Colors.grey)));
@@ -249,15 +290,76 @@ class _DashboardScreenState extends State<DashboardScreen> {
             return Card(
               color: const Color(0xFF1E1E1E),
               margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: isFeatured ? BorderSide(color: Colors.orange.withOpacity(0.5), width: 1) : BorderSide.none
+              ),
               child: ListTile(
-                leading: Container(
-                  width: 50, height: 50, color: Colors.black,
-                  child: item['thumbnail_url'] != null 
-                      ? Image.network(item['thumbnail_url'], fit: BoxFit.cover) 
-                      : const Icon(Icons.movie, color: Colors.grey),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                leading: Stack(
+                  children: [
+                    Container(
+                      width: 60, height: 60, 
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(8),
+                        image: item['thumbnail_url'] != null 
+                          ? DecorationImage(image: NetworkImage(item['thumbnail_url']), fit: BoxFit.cover)
+                          : null
+                      ),
+                      child: item['thumbnail_url'] == null ? const Icon(Icons.movie, color: Colors.grey) : null,
+                    ),
+                    if (isFeatured)
+                      Positioned(top: 0, left: 0, child: Icon(Icons.star, size: 16, color: Colors.orange))
+                  ],
                 ),
-                title: Text(item['title'] ?? 'Tanpa Judul', style: GoogleFonts.poppins(color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(isFeatured ? 'Tayang (Featured)' : 'Draft / Regular', style: GoogleFonts.poppins(color: isFeatured ? Colors.green : Colors.orange, fontSize: 12)),
+                title: Text(item['title'] ?? 'Tanpa Judul', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item['category'] ?? 'Umum', style: GoogleFonts.poppins(color: Colors.grey, fontSize: 12)),
+                    if (isFeatured) Text("Featured / Highlight", style: GoogleFonts.poppins(color: Colors.orange, fontSize: 10)),
+                  ],
+                ),
+                
+                // --- MENU SAKTI (TITIK TIGA) ---
+                trailing: PopupMenuButton(
+                  icon: const Icon(Icons.more_vert, color: Colors.white),
+                  color: const Color(0xFF2C2C2C),
+                  itemBuilder: (context) => [
+                    // MENU PIN (Hanya Admin)
+                    if (_role == 'admin')
+                      PopupMenuItem(
+                        value: 'pin',
+                        child: Row(children: [
+                          Icon(isFeatured ? LucideIcons.pinOff : LucideIcons.pin, color: isFeatured ? Colors.orange : Colors.white, size: 18),
+                          const SizedBox(width: 10),
+                          Text(isFeatured ? "Unpin (Lepas)" : "Pin to Top", style: const TextStyle(color: Colors.white))
+                        ]),
+                      ),
+                    
+                    // MENU EDIT
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Row(children: const [Icon(LucideIcons.edit, color: Colors.blue, size: 18), SizedBox(width: 10), Text("Edit", style: TextStyle(color: Colors.white))]),
+                    ),
+                    
+                    // MENU HAPUS
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(children: const [Icon(LucideIcons.trash2, color: Colors.red, size: 18), SizedBox(width: 10), Text("Hapus", style: TextStyle(color: Colors.white))]),
+                    ),
+                  ],
+                  onSelected: (val) async {
+                    if (val == 'pin') _togglePin(item['id'], isFeatured);
+                    if (val == 'delete') _deleteKajian(item['id']);
+                    if (val == 'edit') {
+                        // Navigasi ke AdminScreen mode Edit (Bawa Data)
+                        final res = await Navigator.push(context, MaterialPageRoute(builder: (context) => AdminScreen(editData: item)));
+                        if (res == true) setState((){}); // Refresh list setelah edit
+                    }
+                  },
+                ),
               ),
             );
           },
