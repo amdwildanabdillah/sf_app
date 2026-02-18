@@ -19,16 +19,37 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  // --- LOGIN GOOGLE ---
+  // --- LOGIN GOOGLE (SUPORT WEB & HP) ---
   Future<void> _googleSignIn() async {
-    if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Di Windows pake Email di bawah aja ya Mas! 👇")));
+    // 1. CEK KALAU INI WEB
+    if (kIsWeb) {
+      setState(() => _isLoading = true);
+      try {
+        await Supabase.instance.client.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: 'https://sanadflow-mobile.vercel.app/', // Pastikan ada slash di akhir
+        );
+        // Kalau Web, dia bakal redirect keluar, jadi gak perlu navigasi manual di sini
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login Web Gagal: $e')));
+        setState(() => _isLoading = false);
+      }
       return;
     }
 
+    // 2. CEK KALAU WINDOWS/LINUX (Gak Support Google Sign In)
+    if (Platform.isWindows || Platform.isLinux) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Di PC pake Email di bawah aja ya Mas! 👇")));
+      return;
+    }
+
+    // 3. CARA LOGIN UNTUK HP (ANDROID/IOS)
     setState(() => _isLoading = true);
     try {
-      const webClientId = '965575022029-5404g6jidgr3ron6m8iqaphqe307vshe.apps.googleusercontent.com'; // Ganti Client ID kalau perlu
+      // Ganti Client ID ini dengan 'Web Client ID' dari Google Cloud Console
+      // (Bukan Android Client ID ya, tapi yang Web)
+      const webClientId = '965575022029-5404g6jidgr3ron6m8iqaphqe307vshe.apps.googleusercontent.com'; 
+      
       final GoogleSignIn googleSignIn = GoogleSignIn(serverClientId: webClientId);
       final googleUser = await googleSignIn.signIn();
       
@@ -52,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
       
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login Gagal: $e'), backgroundColor: Colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login HP Gagal: $e'), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
