@@ -352,7 +352,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(children: [Icon(LucideIcons.scissors, size: 16, color: Colors.blue), SizedBox(width: 8), Text("Credit Clipper / Reposter (Agar mereka grow up!)", style: GoogleFonts.poppins(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 11))]),
+                    Row(children: [Icon(LucideIcons.scissors, size: 16, color: Colors.blue), SizedBox(width: 8), Text("Credit (Clipper / Source)", style: GoogleFonts.poppins(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 11))]),
                     const SizedBox(height: 16),
                     _buildTextField(_sourceNameController, "Nama Akun (Cth: @kajian1menit)", icon: LucideIcons.atSign),
                     const SizedBox(height: 10),
