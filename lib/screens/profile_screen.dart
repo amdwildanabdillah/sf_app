@@ -1,13 +1,10 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sanadflow_mobile/screens/login_screen.dart';
-import 'package:sanadflow_mobile/screens/dashboard_screen.dart'; // Buat Admin/Contributor
 import 'package:sanadflow_mobile/screens/about_screen.dart';
-import 'package:sanadflow_mobile/screens/edit_profile_screen.dart';
-import 'package:sanadflow_mobile/screens/settings_screen.dart';
+import 'package:sanadflow_mobile/screens/dashboard_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -17,270 +14,224 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isLoading = true;
+  Map<String, dynamic>? _profileData;
   final user = Supabase.instance.client.auth.currentUser;
 
-  // LOGIC SAKTI: CUSTOM TITLE (GIMMICK KEREN)
-  String _getCustomTitle(String email, String role) {
-    if (email.contains('wildan')) return 'Founder Vixel'; // Easter Egg 1
-    if (email.contains('vixel')) return 'Core Developer'; // Easter Egg 2
-    
-    // Role Base Title
-    if (role == 'admin') return 'Administrator';
-    if (role == 'contributor') return 'Kontributor Dakwah';
-    
-    return 'Penuntut Ilmu'; // Default User
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfile();
   }
 
-  // LOGIC PENGAJUAN CONTRIBUTOR
-  Future<void> _applyForContributor() async {
-    // Tampilkan Dialog Konfirmasi
-    showDialog(
-      context: context, 
-      builder: (c) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: Text("Daftar Kontributor", style: GoogleFonts.poppins(color: Colors.white)),
-        content: Text(
-          "Apakah Anda ingin bergabung membagikan konten dakwah? Akun Anda akan ditinjau oleh Admin.",
-          style: GoogleFonts.poppins(color: Colors.grey),
-        ),
-        actions: [
-          TextButton(child: const Text("Batal"), onPressed: () => Navigator.pop(c)),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2962FF)),
-            child: const Text("Ajukan", style: TextStyle(color: Colors.white)),
-            onPressed: () async {
-              Navigator.pop(c);
-              try {
-                await Supabase.instance.client.from('profiles').update({
-                  'contributor_status': 'pending'
-                }).eq('id', user!.id);
-                setState(() {}); // Refresh UI
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pengajuan dikirim! Tunggu acc Admin.")));
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Gagal mengajukan.")));
-              }
-            },
-          )
-        ],
-      )
-    );
+  // --- LOGIC AMBIL DATA (KEBAL ERROR) ---
+  Future<void> _fetchProfile() async {
+    if (user == null) return;
+
+    try {
+      // 1. Coba ambil dari Database
+      final data = await Supabase.instance.client
+          .from('profiles')
+          .select()
+          .eq('id', user!.id)
+          .maybeSingle();
+
+      if (mounted) {
+        setState(() {
+          _profileData = data;
+          _isLoading = false; // STOP LOADING SUKSES
+        });
+      }
+    } catch (e) {
+      debugPrint("Error profile: $e");
+      // 2. Kalau Error, tetep STOP Loading (Biar gak kluwer-kluwer)
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // --- LOGIC JUDUL ROLE (CUSTOM) ---
+  String _getRoleBadge(String? role, String? email) {
+    // BACKDOOR FOUNDER (Biar keren)
+    if (email != null && (email.contains('wildan') || email.contains('vixel'))) {
+      return 'FOUNDER VIXEL';
+    }
+    
+    // Normal Check
+    switch (role) {
+      case 'admin': return 'ADMINISTRATOR';
+      case 'contributor': return 'KONTRIBUTOR';
+      case 'ustadz': return 'DAI TERVERIFIKASI';
+      default: return 'JAMAAH';
+    }
+  }
+
+  // --- LOGIC LOGOUT ---
+  Future<void> _signOut() async {
+    await Supabase.instance.client.auth.signOut();
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()), 
+        (route) => false
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Kalau user belum login (Tamu), tampilkan halaman login
-    if (user == null) {
-      return Scaffold(
-        backgroundColor: const Color(0xFF121212),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(LucideIcons.lock, size: 50, color: Colors.grey),
-              const SizedBox(height: 16),
-              Text("Silakan Login Terlebih Dahulu", style: GoogleFonts.poppins(color: Colors.white)),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2962FF)),
-                onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
-                child: const Text("Login Sekarang", style: TextStyle(color: Colors.white)),
-              )
-            ],
-          ),
-        ),
-      );
-    }
+    // Data Cadangan (Kalau DB Gagal/Null)
+    final email = user?.email ?? 'Tamu';
+    final metaName = user?.userMetadata?['full_name'];
+    final metaAvatar = user?.userMetadata?['avatar_url'] ?? user?.userMetadata?['picture'];
 
-    // STREAM PROFILE DATA
+    // Prioritas Data: Database > Google Auth > Default
+    final fullName = _profileData?['full_name'] ?? metaName ?? 'Hamba Allah';
+    final role = _profileData?['role'] ?? 'viewer';
+    // const avatarPlaceholder = "https://ui-avatars.com/api/?background=random&name="; 
+
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
-      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        title: Text("Profil Saya", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        automaticallyImplyLeading: false,
-        flexibleSpace: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(color: Colors.black.withOpacity(0.3)),
+        automaticallyImplyLeading: false, // Hapus tombol back (karena ini tab utama)
+      ),
+      body: RefreshIndicator(
+        onRefresh: _fetchProfile, // Tarik buat refresh
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              
+              // --- 1. FOTO PROFIL ---
+              Stack(
+                children: [
+                  Container(
+                    width: 100, height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF2962FF), width: 2),
+                      image: DecorationImage(
+                        image: metaAvatar != null 
+                            ? NetworkImage(metaAvatar) 
+                            : const NetworkImage("https://via.placeholder.com/150"), // Placeholder sementara
+                        fit: BoxFit.cover
+                      ),
+                    ),
+                    child: metaAvatar == null ? const Icon(LucideIcons.user, size: 50, color: Colors.grey) : null,
+                  ),
+                  if (_isLoading) 
+                    const Positioned.fill(child: CircularProgressIndicator(color: Colors.white))
+                ],
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // --- 2. NAMA & BADGE ---
+              Text(fullName, style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2962FF).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF2962FF))
+                ),
+                child: Text(
+                  _getRoleBadge(role, email), 
+                  style: GoogleFonts.poppins(color: const Color(0xFF2962FF), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              // --- 3. MENU NAVIGASI ---
+              // KHUSUS: Menu Daftar Kontributor / Dashboard
+              _buildMenuCard(
+                icon: role == 'admin' || role == 'contributor' ? LucideIcons.layoutDashboard : LucideIcons.userPlus,
+                title: role == 'admin' || role == 'contributor' ? "Masuk Dashboard" : "Daftar Jadi Kontributor",
+                subtitle: role == 'admin' || role == 'contributor' ? "Kelola konten kajian" : "Bagikan kajian bermanfaat",
+                color: const Color(0xFF1E1E1E),
+                onTap: () {
+                   Navigator.push(context, MaterialPageRoute(builder: (context) => const DashboardScreen()));
+                }
+              ),
+
+              const SizedBox(height: 20),
+
+              // Menu Umum
+              _buildMenuItem(LucideIcons.edit3, "Edit Profil", () {
+                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fitur Edit Profil segera hadir!")));
+              }),
+              _buildMenuItem(LucideIcons.settings, "Pengaturan", () {}),
+              _buildMenuItem(LucideIcons.info, "Tentang Aplikasi", () {
+                 Navigator.push(context, MaterialPageRoute(builder: (context) => const AboutScreen()));
+              }),
+              
+              const SizedBox(height: 20),
+              
+              _buildMenuItem(LucideIcons.logOut, "Keluar", _signOut, isDestructive: true),
+              
+              const SizedBox(height: 40),
+              Text("Versi 1.0.0 (Beta)", style: GoogleFonts.poppins(color: Colors.grey[800], fontSize: 12)),
+            ],
           ),
         ),
-        title: Text('Profil Saya', style: GoogleFonts.poppins(fontWeight: FontWeight.w500, fontSize: 18, color: Colors.white)),
-        actions: [
-          IconButton(
-            icon: const Icon(LucideIcons.settings, color: Colors.white),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pengaturan Segera Hadir!")));
-            },
-          )
-        ],
-      ),
-      
-      body: StreamBuilder<Map<String, dynamic>>(
-        stream: Supabase.instance.client
-            .from('profiles')
-            .stream(primaryKey: ['id'])
-            .eq('id', user!.id)
-            .map((list) => list.isNotEmpty ? list.first : {}),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          
-          final profile = snapshot.data!;
-          final role = profile['role'] ?? 'viewer';
-          final status = profile['contributor_status'] ?? 'none';
-          final customTitle = _getCustomTitle(user!.email ?? '', role); // <--- INI FITUR KERENNYA
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 120, 20, 100),
-            child: Column(
-              children: [
-                // 1. FOTO PROFIL
-                Container(
-                  width: 100, height: 100,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFF2962FF), width: 2),
-                    image: profile['avatar_url'] != null
-                        ? DecorationImage(image: NetworkImage(profile['avatar_url']), fit: BoxFit.cover)
-                        : null,
-                  ),
-                  child: profile['avatar_url'] == null 
-                      ? const Icon(LucideIcons.user, size: 40, color: Colors.white) 
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                
-                // 2. NAMA & TITLE KEREN
-                Text(
-                  profile['full_name'] ?? 'Pengguna',
-                  style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                Container(
-                  margin: const EdgeInsets.only(top: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2962FF).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFF2962FF).withOpacity(0.5))
-                  ),
-                  child: Text(
-                    customTitle.toUpperCase(), // "FOUNDER VIXEL" / "PENUNTUT ILMU"
-                    style: GoogleFonts.poppins(color: const Color(0xFF2962FF), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
-                  ),
-                ),
-
-                const SizedBox(height: 40),
-
-                // 3. ROLE MANAGEMENT CARD (SHOPEE STYLE)
-                if (role == 'admin' || role == 'contributor') ...[
-                  // KALO UDAH JADI ADMIN/CONTRIBUTOR -> TAMPILKAN TOMBOL DASHBOARD
-                  _buildMenuCard(
-                    title: "Dashboard Konten",
-                    subtitle: "Kelola video kajian dan ustadz",
-                    icon: LucideIcons.layoutDashboard,
-                    color: Colors.orange,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const DashboardScreen())),
-                  ),
-                ] else if (status == 'pending') ...[
-                  // KALO LAGI DIAJUIN
-                  _buildMenuCard(
-                    title: "Pengajuan Sedang Ditinjau",
-                    subtitle: "Mohon tunggu persetujuan Admin",
-                    icon: LucideIcons.clock,
-                    color: Colors.grey,
-                    onTap: () {},
-                  ),
-                ] else ...[
-                  // KALO MASIH VIEWER -> TOMBOL DAFTAR
-                  _buildMenuCard(
-                    title: "Daftar Jadi Kontributor",
-                    subtitle: "Bagikan kajian bermanfaat untuk umat",
-                    icon: LucideIcons.userPlus,
-                    color: Colors.green,
-                    onTap: _applyForContributor,
-                  ),
-                ],
-
-                const SizedBox(height: 20),
-
-                // 4. MENU UMUM
-                _buildMenuItem("Edit Profil", LucideIcons.edit3, () {
-                   Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfileScreen()));
-                }),
-                _buildMenuItem("Pengaturan", LucideIcons.settings, () { // <--- TAMBAHIN INI
-                   Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));
-                }),
-                _buildMenuItem("Tentang Aplikasi", LucideIcons.info, () {
-                   Navigator.push(context, MaterialPageRoute(builder: (context) => const AboutScreen()));
-                }),
-              ],
-            ),
-          );
-        },
       ),
     );
   }
 
-  // Widget Card Besar (Buat Dashboard/Daftar)
-  Widget _buildMenuCard({required String title, required String subtitle, required IconData icon, required Color color, required VoidCallback onTap}) {
+  // WIDGET CARD BESAR (DASHBOARD/DAFTAR)
+  Widget _buildMenuCard({required IconData icon, required String title, required String subtitle, required Color color, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E),
+          color: color,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white10),
+          border: Border.all(color: Colors.white10)
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 24),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), shape: BoxShape.circle),
+              child: Icon(icon, color: Colors.greenAccent),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
+                  Text(title, style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
                   Text(subtitle, style: GoogleFonts.poppins(color: Colors.grey, fontSize: 12)),
                 ],
               ),
             ),
-            const Icon(LucideIcons.chevronRight, color: Colors.grey, size: 20),
+            const Icon(LucideIcons.chevronRight, color: Colors.grey)
           ],
         ),
       ),
     );
   }
 
-  // Widget Menu List Biasa
-  Widget _buildMenuItem(String title, IconData icon, VoidCallback onTap, {bool isDestructive = false}) {
+  // WIDGET MENU LIST BIASA
+  Widget _buildMenuItem(IconData icon, String title, VoidCallback onTap, {bool isDestructive = false}) {
     return ListTile(
+      onTap: onTap,
       contentPadding: EdgeInsets.zero,
       leading: Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: isDestructive ? Colors.redAccent : Colors.white, size: 20),
+        decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
+        child: Icon(icon, size: 20, color: isDestructive ? Colors.redAccent : Colors.white),
       ),
-      title: Text(
-        title, 
-        style: GoogleFonts.poppins(
-          color: isDestructive ? Colors.redAccent : Colors.white, 
-          fontWeight: FontWeight.w500
-        )
-      ),
-      trailing: const Icon(LucideIcons.chevronRight, color: Colors.grey, size: 18),
-      onTap: onTap,
+      title: Text(title, style: GoogleFonts.poppins(color: isDestructive ? Colors.redAccent : Colors.white, fontWeight: FontWeight.w500)),
+      trailing: const Icon(LucideIcons.chevronRight, size: 18, color: Colors.grey),
     );
   }
 }
