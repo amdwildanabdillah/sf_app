@@ -14,7 +14,7 @@ Future<void> main() async {
     url: 'https://jpaagyecfxhzjpzstgsi.supabase.co',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwYWFneWVjZnhoempwenN0Z3NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjgxNDQsImV4cCI6MjA4NTcwNDE0NH0.Vh9lDS64jmb5ZMnyflpl6HRe6XxNfnA6JtJTwIUM-sI',
   );
-
+ 
   runApp(const SanadFlowApp());
 }
 

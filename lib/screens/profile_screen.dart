@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sanadflow_mobile/screens/login_screen.dart';
 import 'package:sanadflow_mobile/screens/about_screen.dart';
 import 'package:sanadflow_mobile/screens/dashboard_screen.dart';
+import 'package:sanadflow_mobile/screens/edit_profile_screen.dart'; // Pastikan file ini ada
+import 'package:sanadflow_mobile/screens/settings_screen.dart';     // Pastikan file ini ada
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -24,44 +26,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _fetchProfile();
   }
 
-  // --- LOGIC AMBIL DATA (KEBAL ERROR) ---
+  // --- 1. AMBIL DATA PROFIL ---
   Future<void> _fetchProfile() async {
     if (user == null) return;
-
     try {
-      // 1. Coba ambil dari Database
       final data = await Supabase.instance.client
           .from('profiles')
           .select()
           .eq('id', user!.id)
           .maybeSingle();
-
+      
       if (mounted) {
         setState(() {
           _profileData = data;
-          _isLoading = false; // STOP LOADING SUKSES
+          _isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint("Error profile: $e");
-      // 2. Kalau Error, tetep STOP Loading (Biar gak kluwer-kluwer)
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // --- LOGIC JUDUL ROLE (CUSTOM) ---
+  // --- 2. LOGIC NAMA ROLE (TEXT) ---
   String _getRoleBadge(String? role, String? email) {
-    // BACKDOOR FOUNDER (Biar keren)
-    if (email != null && (email.contains('wildan') || email.contains('vixel'))) {
+    if (email == null) return 'JAMAAH';
+    
+    // Normalisasi biar huruf kecil semua (biar gak error kalau ada kapital)
+    final e = email.toLowerCase(); 
+
+    // A. FOUNDER (Spesifik Email Pribadi)
+    if (e == 'amd.wildanabdillah@gmail.com') {
       return 'FOUNDER VIXEL';
     }
+
+    // B. DEVELOPER (Email Kantor/Tim)
+    if (e.contains('vixel')) {
+      return 'LEAD DEVELOPER';
+    }
     
-    // Normal Check
+    // C. ROLE DARI DATABASE
     switch (role) {
       case 'admin': return 'ADMINISTRATOR';
       case 'contributor': return 'KONTRIBUTOR';
-      case 'ustadz': return 'DAI TERVERIFIKASI';
+      case 'ustadz': return 'PENCERAMAH';
       default: return 'JAMAAH';
+    }
+  }
+
+  // --- 3. LOGIC WARNA BADGE (COLOR) ---
+  Color _getBadgeColor(String badgeText) {
+    switch (badgeText) {
+      case 'FOUNDER VIXEL': return const Color(0xFFFFD700); // Emas
+      case 'LEAD DEVELOPER': return const Color(0xFF00E5FF); // Cyan Terang
+      case 'ADMINISTRATOR': return Colors.redAccent;        // Merah
+      case 'KONTRIBUTOR': return Colors.greenAccent;        // Hijau
+      case 'PENCERAMAH': return Colors.purpleAccent;        // Ungu
+      default: return const Color(0xFF2962FF);              // Biru (Default)
     }
   }
 
@@ -78,15 +98,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Data Cadangan (Kalau DB Gagal/Null)
-    final email = user?.email ?? 'Tamu';
+    final email = user?.email; // Bisa null kalau guest
     final metaName = user?.userMetadata?['full_name'];
-    final metaAvatar = user?.userMetadata?['avatar_url'] ?? user?.userMetadata?['picture'];
-
-    // Prioritas Data: Database > Google Auth > Default
+    final metaAvatar = user?.userMetadata?['avatar_url'];
+    
+    // Data Tampilan
     final fullName = _profileData?['full_name'] ?? metaName ?? 'Hamba Allah';
     final role = _profileData?['role'] ?? 'viewer';
-    // const avatarPlaceholder = "https://ui-avatars.com/api/?background=random&name="; 
+
+    // Hitung Badge & Warna di sini
+    final badgeText = _getRoleBadge(role, email);
+    final badgeColor = _getBadgeColor(badgeText);
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
@@ -95,10 +117,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        automaticallyImplyLeading: false, // Hapus tombol back (karena ini tab utama)
+        automaticallyImplyLeading: false, 
       ),
       body: RefreshIndicator(
-        onRefresh: _fetchProfile, // Tarik buat refresh
+        onRefresh: _fetchProfile,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(20),
@@ -106,68 +128,80 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               const SizedBox(height: 20),
               
-              // --- 1. FOTO PROFIL ---
-              Stack(
-                children: [
-                  Container(
-                    width: 100, height: 100,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF2962FF), width: 2),
-                      image: DecorationImage(
-                        image: metaAvatar != null 
-                            ? NetworkImage(metaAvatar) 
-                            : const NetworkImage("https://via.placeholder.com/150"), // Placeholder sementara
-                        fit: BoxFit.cover
-                      ),
-                    ),
-                    child: metaAvatar == null ? const Icon(LucideIcons.user, size: 50, color: Colors.grey) : null,
-                  ),
-                  if (_isLoading) 
-                    const Positioned.fill(child: CircularProgressIndicator(color: Colors.white))
-                ],
+              // FOTO PROFIL
+              Container(
+                width: 100, height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: badgeColor, width: 2), // Border ngikutin warna role
+                  image: DecorationImage(
+                    image: metaAvatar != null 
+                      ? NetworkImage(metaAvatar) 
+                      : const NetworkImage("https://via.placeholder.com/150"),
+                    fit: BoxFit.cover
+                  )
+                ),
+                child: metaAvatar == null ? const Icon(LucideIcons.user, size: 50, color: Colors.grey) : null,
               ),
               
               const SizedBox(height: 16),
               
-              // --- 2. NAMA & BADGE ---
+              // NAMA LENGKAP
               Text(fullName, style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              
               const SizedBox(height: 8),
               
+              // BADGE ROLE (KEREN & DINAMIS)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2962FF).withOpacity(0.2),
+                  color: badgeColor.withOpacity(0.15), // Transparan dikit
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF2962FF))
+                  border: Border.all(color: badgeColor)
                 ),
                 child: Text(
-                  _getRoleBadge(role, email), 
-                  style: GoogleFonts.poppins(color: const Color(0xFF2962FF), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)
+                  badgeText, 
+                  style: GoogleFonts.poppins(
+                    color: badgeColor, 
+                    fontSize: 10, 
+                    fontWeight: FontWeight.bold, 
+                    letterSpacing: 1.2
+                  )
                 ),
               ),
-
+              
               const SizedBox(height: 30),
-
-              // --- 3. MENU NAVIGASI ---
-              // KHUSUS: Menu Daftar Kontributor / Dashboard
-              _buildMenuCard(
-                icon: role == 'admin' || role == 'contributor' ? LucideIcons.layoutDashboard : LucideIcons.userPlus,
-                title: role == 'admin' || role == 'contributor' ? "Masuk Dashboard" : "Daftar Jadi Kontributor",
-                subtitle: role == 'admin' || role == 'contributor' ? "Kelola konten kajian" : "Bagikan kajian bermanfaat",
-                color: const Color(0xFF1E1E1E),
-                onTap: () {
-                   Navigator.push(context, MaterialPageRoute(builder: (context) => const DashboardScreen()));
-                }
-              ),
-
+              
+              // CARD DASHBOARD (Khusus Admin/Kontributor/Founder)
+              if (role == 'admin' || role == 'contributor' || badgeText == 'FOUNDER VIXEL')
+                _buildMenuCard(
+                  icon: LucideIcons.layoutDashboard,
+                  title: "Masuk Dashboard",
+                  subtitle: "Kelola konten kajian & data",
+                  color: const Color(0xFF1E1E1E),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const DashboardScreen()))
+                )
+              else 
+                _buildMenuCard(
+                  icon: LucideIcons.userPlus,
+                  title: "Daftar Jadi Kontributor",
+                  subtitle: "Bagikan kajian bermanfaat",
+                  color: const Color(0xFF1E1E1E),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const DashboardScreen()))
+                ),
+              
               const SizedBox(height: 20),
 
-              // Menu Umum
-              _buildMenuItem(LucideIcons.edit3, "Edit Profil", () {
-                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fitur Edit Profil segera hadir!")));
+              // MENU OPSI
+              _buildMenuItem(LucideIcons.edit3, "Edit Profil", () async {
+                 final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const EditProfileScreen()));
+                 if (result == true) _fetchProfile(); // Refresh kalau ada perubahan nama
               }),
-              _buildMenuItem(LucideIcons.settings, "Pengaturan", () {}),
+              
+              _buildMenuItem(LucideIcons.settings, "Pengaturan", () {
+                 Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));
+              }),
+              
               _buildMenuItem(LucideIcons.info, "Tentang Aplikasi", () {
                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AboutScreen()));
               }),
@@ -185,51 +219,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // WIDGET CARD BESAR (DASHBOARD/DAFTAR)
   Widget _buildMenuCard({required IconData icon, required String title, required String subtitle, required Color color, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white10)
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), shape: BoxShape.circle),
-              child: Icon(icon, color: Colors.greenAccent),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
-                  Text(subtitle, style: GoogleFonts.poppins(color: Colors.grey, fontSize: 12)),
-                ],
-              ),
-            ),
-            const Icon(LucideIcons.chevronRight, color: Colors.grey)
-          ],
-        ),
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white10)),
+        child: Row(children: [
+          Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), shape: BoxShape.circle), child: Icon(icon, color: Colors.greenAccent)),
+          const SizedBox(width: 16),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)), Text(subtitle, style: GoogleFonts.poppins(color: Colors.grey, fontSize: 12))])),
+          const Icon(LucideIcons.chevronRight, color: Colors.grey)
+        ]),
       ),
     );
   }
 
-  // WIDGET MENU LIST BIASA
   Widget _buildMenuItem(IconData icon, String title, VoidCallback onTap, {bool isDestructive = false}) {
     return ListTile(
       onTap: onTap,
       contentPadding: EdgeInsets.zero,
-      leading: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
-        child: Icon(icon, size: 20, color: isDestructive ? Colors.redAccent : Colors.white),
-      ),
+      leading: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)), child: Icon(icon, size: 20, color: isDestructive ? Colors.redAccent : Colors.white)),
       title: Text(title, style: GoogleFonts.poppins(color: isDestructive ? Colors.redAccent : Colors.white, fontWeight: FontWeight.w500)),
       trailing: const Icon(LucideIcons.chevronRight, size: 18, color: Colors.grey),
     );

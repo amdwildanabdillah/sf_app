@@ -12,50 +12,63 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _nameController = TextEditingController();
-  final _bioController = TextEditingController();
   bool _isLoading = false;
+  final user = Supabase.instance.client.auth.currentUser;
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _fetchCurrentProfile();
   }
 
-  // AMBIL DATA LAMA BIAR USER GAK NGETIK DARI NOL
-  Future<void> _loadUserData() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
+  // Ambil nama sekarang biar gak ngetik ulang
+  Future<void> _fetchCurrentProfile() async {
+    if (user == null) return;
+    try {
       final data = await Supabase.instance.client
           .from('profiles')
-          .select()
-          .eq('id', user.id)
-          .single();
-      setState(() {
+          .select('full_name')
+          .eq('id', user!.id)
+          .maybeSingle();
+      
+      if (data != null && mounted) {
         _nameController.text = data['full_name'] ?? '';
-        _bioController.text = data['bio'] ?? '';
-      });
+      }
+    } catch (e) {
+      debugPrint("Error fetching profile: $e");
     }
   }
 
-  // SIMPAN DATA
+  // Simpan Perubahan
   Future<void> _saveProfile() async {
+    if (_nameController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nama tidak boleh kosong")));
+      return;
+    }
+
     setState(() => _isLoading = true);
+
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      await Supabase.instance.client.from('profiles').update({
+      // Update ke Database
+      await Supabase.instance.client.from('profiles').upsert({
+        'id': user!.id,
         'full_name': _nameController.text,
-        'bio': _bioController.text,
         'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', user!.id);
+      });
+
+      // Update Metadata Google (Opsional, biar sinkron)
+      await Supabase.instance.client.auth.updateUser(
+        UserAttributes(data: {'full_name': _nameController.text})
+      );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profil berhasil diupdate!")));
-        Navigator.pop(context); // Balik ke halaman Profil
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(backgroundColor: Colors.green, content: Text("Profil Berhasil Diupdate!")));
+        Navigator.pop(context, true); // Balik ke profil bawa sinyal "true" (Refresh)
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Gagal: $e")));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(backgroundColor: Colors.red, content: Text("Gagal: $e")));
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -64,66 +77,40 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, color: Colors.white), 
-          onPressed: () => Navigator.pop(context)
-        ),
-        title: Text("Edit Profil", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+        backgroundColor: Colors.transparent, elevation: 0,
+        leading: const BackButton(color: Colors.white),
+        title: Text("Edit Profil", style: GoogleFonts.poppins(color: Colors.white)),
         centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // FORM NAMA
             TextField(
               controller: _nameController,
               style: const TextStyle(color: Colors.white),
-              decoration: _inputDecor("Nama Lengkap", LucideIcons.user),
+              decoration: InputDecoration(
+                labelText: "Nama Lengkap",
+                labelStyle: TextStyle(color: Colors.grey[400]),
+                prefixIcon: const Icon(LucideIcons.user, color: Colors.grey),
+                filled: true, fillColor: const Color(0xFF1E1E1E),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
             ),
-            const SizedBox(height: 16),
-            
-            // FORM BIO
-            TextField(
-              controller: _bioController,
-              style: const TextStyle(color: Colors.white),
-              maxLines: 3,
-              decoration: _inputDecor("Bio Singkat (Status)", LucideIcons.alignLeft),
-            ),
-            const SizedBox(height: 32),
-
-            // TOMBOL SIMPAN
+            const SizedBox(height: 30),
             SizedBox(
-              width: double.infinity,
-              height: 50,
+              width: double.infinity, height: 50,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _saveProfile,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2962FF),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2962FF)),
                 child: _isLoading 
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : Text("Simpan Perubahan", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+                  : Text("SIMPAN PERUBAHAN", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             )
           ],
         ),
       ),
-    );
-  }
-
-  InputDecoration _inputDecor(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: Colors.grey),
-      prefixIcon: Icon(icon, color: Colors.grey),
-      filled: true,
-      fillColor: const Color(0xFF1E1E1E),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2962FF))),
     );
   }
 }
