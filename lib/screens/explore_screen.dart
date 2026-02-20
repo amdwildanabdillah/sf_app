@@ -17,7 +17,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   bool _isLoading = false;
   bool _isSearching = false;
 
-  // LOGIC PENCARIAN SAKTI
+  // LOGIC PENCARIAN SAKTI (SUDAH DITAMBAH GATEKEEPING)
   Future<void> _performSearch(String query) async {
     if (query.isEmpty) {
       setState(() {
@@ -38,6 +38,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
       final response = await Supabase.instance.client
           .from('kajian_lengkap')
           .select()
+          .eq('status', 'approved') // <--- FILTER GATEKEEPING BIAR AMAN DARI HOAKS
           .or('title.ilike.%$query%, dai_name.ilike.%$query%, category.ilike.%$query%')
           .order('created_at', ascending: false);
 
@@ -132,6 +133,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                    'dai_id': item['dai_id'],
                                    'id': item['id'],
                                    'dai_avatar': item['dai_avatar'], // Penting buat profil
+                                   'is_verified': item['is_verified'], 
+                                    'source_account_name': item['source_account_name'],
                               })));
                             },
                           ),

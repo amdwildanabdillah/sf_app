@@ -35,18 +35,19 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
   // AMBIL DATA LENGKAP DAI + KAJIANNYA
   Future<void> _fetchDaiDetails() async {
     try {
-      // 1. Ambil Detail Profil (Bio, Sosmed)
+      // 1. Ambil Detail Profil (Bio, Sosmed, is_verified)
       final daiResponse = await Supabase.instance.client
           .from('dais')
           .select()
           .eq('id', widget.daiId)
           .single();
 
-      // 2. Ambil List Video Beliau
+      // 2. Ambil List Video Beliau (DENGAN FILTER GATEKEEPING)
       final kajianResponse = await Supabase.instance.client
-          .from('kajian_lengkap') // Ambil dari View biar lengkap
+          .from('kajian_lengkap') 
           .select()
           .eq('dai_id', widget.daiId)
+          .eq('status', 'approved') // <--- FILTER VIDEO PENDING
           .order('created_at', ascending: false);
 
       if (mounted) {
@@ -72,6 +73,9 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // LOGIC FOTO: Ambil dari widget dulu, kalau kosong ambil dari database
+    final String? displayAvatar = widget.daiAvatar ?? _daiData?['avatar_url'];
+
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
@@ -80,7 +84,7 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
         title: Text(widget.daiName, style: GoogleFonts.poppins(color: Colors.white)),
       ),
       body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
+        ? const Center(child: CircularProgressIndicator(color: Color(0xFF2962FF)))
         : SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -89,11 +93,25 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
                 CircleAvatar(
                   radius: 50,
                   backgroundColor: Colors.grey[800],
-                  backgroundImage: widget.daiAvatar != null ? NetworkImage(widget.daiAvatar!) : null,
-                  child: widget.daiAvatar == null ? const Icon(LucideIcons.user, size: 40, color: Colors.white) : null,
+                  backgroundImage: displayAvatar != null ? NetworkImage(displayAvatar) : null,
+                  child: displayAvatar == null ? const Icon(LucideIcons.user, size: 40, color: Colors.white) : null,
                 ),
                 const SizedBox(height: 16),
-                Text(widget.daiName, style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                
+                // --- NAMA & CENTANG BIRU ---
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(widget.daiName, style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                    
+                    // KONDISI CENTANG BIRU (Cek is_verified dari database)
+                    if (_daiData?['is_verified'] == true) ...[
+                      const SizedBox(width: 8),
+                      const Icon(Icons.verified, color: Colors.blueAccent, size: 24),
+                    ],
+                  ],
+                ),
+                
                 const SizedBox(height: 8),
                 
                 // BIO SINGKAT
@@ -106,14 +124,13 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
 
                 const SizedBox(height: 20),
 
-                // --- 2. ROW SOSMED (YOUTUBE, IG, TIKTOK, FANBASE) ---
+                // --- 2. ROW SOSMED (YOUTUBE, IG, TIKTOK) ---
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _socialButton(LucideIcons.youtube, Colors.red, _daiData?['youtube_channel']),
                     _socialButton(LucideIcons.instagram, Colors.purpleAccent, _daiData?['instagram_url']),
-                    _socialButton(Icons.tiktok, Colors.white, _daiData?['tiktok_url']), // Icon TikTok pake material icons
-                    _socialButton(LucideIcons.users, Colors.blue, _daiData?['fanbase_url']), // Fanbase
+                    _socialButton(Icons.tiktok, Colors.white, _daiData?['tiktok_url']),
                   ],
                 ),
 
@@ -146,15 +163,18 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
                               title: Text(item['title'] ?? 'Tanpa Judul', maxLines: 2, overflow: TextOverflow.ellipsis, style: GoogleFonts.poppins(color: Colors.white, fontSize: 14)),
                               subtitle: Text("${item['views'] ?? 0} views", style: GoogleFonts.poppins(color: Colors.grey, fontSize: 11)),
                               onTap: () {
-                                // Buka Video Detail lagi
+                                // Buka Video Detail (Membawa Data Foto Ustadz)
                                 Navigator.push(context, MaterialPageRoute(builder: (context) => VideoDetailScreen(videoData: {
                                    'title': item['title'],
-                                   'author': widget.daiName, // Pakai nama dari parent biar aman
+                                   'author': widget.daiName, 
                                    'video_url': item['video_url'],
                                    'img': item['thumbnail_url'],
                                    'desc': item['description'],
-                                   'dai_id': widget.daiId, // Penting buat save
-                                   'id': item['id'], // Penting buat save
+                                   'dai_id': widget.daiId, 
+                                   'id': item['id'], 
+                                   'dai_avatar': displayAvatar, // Mencegah foto hilang
+                                   'is_verified': item['is_verified'], 
+                                    'source_account_name': item['source_account_name'],
                                 })));
                               },
                             ),
@@ -168,7 +188,7 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
   }
 
   Widget _socialButton(IconData icon, Color color, String? url) {
-    if (url == null || url.isEmpty) return const SizedBox.shrink(); // Sembunyikan kalau link kosong
+    if (url == null || url.isEmpty) return const SizedBox.shrink(); 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: IconButton(

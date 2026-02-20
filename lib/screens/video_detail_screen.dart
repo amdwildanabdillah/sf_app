@@ -4,7 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart'; 
-import 'package:sanadflow_mobile/screens/dai_profile_screen.dart'; // IMPORT SCREEN BARU
+import 'package:sanadflow_mobile/screens/dai_profile_screen.dart'; 
 
 class VideoDetailScreen extends StatefulWidget {
   final Map<String, dynamic> videoData;
@@ -17,7 +17,7 @@ class VideoDetailScreen extends StatefulWidget {
 
 class _VideoDetailScreenState extends State<VideoDetailScreen> {
   late YoutubePlayerController _controller;
-  bool _isSaved = false; // Status Bookmark
+  bool _isSaved = false; 
   final user = Supabase.instance.client.auth.currentUser;
 
   @override
@@ -31,7 +31,7 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
       flags: const YoutubePlayerFlags(autoPlay: true, mute: false, enableCaption: false),
     );
 
-    _checkIfSaved(); // Cek status bookmark pas dibuka
+    _checkIfSaved(); 
   }
 
   // --- LOGIC CEK BOOKMARK ---
@@ -57,29 +57,25 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Login dulu untuk menyimpan!")));
       return;
     }
-    // Video ID harus ada (Pastikan query view kamu select 'id' juga)
     final videoId = widget.videoData['id']; 
     if (videoId == null) return;
 
-    setState(() => _isSaved = !_isSaved); // Ubah UI duluan biar cepet
+    setState(() => _isSaved = !_isSaved); 
 
     try {
       if (_isSaved) {
-        // Simpan
         await Supabase.instance.client.from('saved_kajian').insert({
           'user_id': user!.id,
           'kajian_id': videoId
         });
         if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Disimpan ke koleksi")));
       } else {
-        // Hapus
         await Supabase.instance.client.from('saved_kajian').delete()
           .eq('user_id', user!.id)
           .eq('kajian_id', videoId);
         if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Dihapus dari koleksi")));
       }
     } catch (e) {
-      // Kalau gagal balikin UI
       setState(() => _isSaved = !_isSaved);
       if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Gagal memproses")));
     }
@@ -110,10 +106,11 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
     final author = widget.videoData['author'] ?? widget.videoData['dai_name'] ?? 'Ustadz';
     final category = widget.videoData['category'] ?? 'Umum';
     
-    // Data Source / Clipper
+    // --- DATA TAMBAHAN (CLIPPER & VERIFIED) ---
     final sourceName = widget.videoData['source_account_name'];
     final daiId = widget.videoData['dai_id'];
     final daiAvatar = widget.videoData['dai_avatar'];
+    final isVerified = widget.videoData['is_verified'] == true; // Tangkap status verified
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
@@ -144,7 +141,7 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Kategori & Source
+                    // Kategori & Source (Clipper)
                     Row(
                       children: [
                         Container(
@@ -153,8 +150,19 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                           child: Text(category.toUpperCase(), style: GoogleFonts.poppins(color: const Color(0xFF2962FF), fontSize: 10, fontWeight: FontWeight.bold)),
                         ),
                         const Spacer(),
-                        if (sourceName != null) 
-                          Text("Sumber: $sourceName", style: GoogleFonts.poppins(color: Colors.grey, fontSize: 11, fontStyle: FontStyle.italic)),
+                        // TAMPILAN CLIPPER / SUMBER VIDEO
+                        if (sourceName != null && sourceName.toString().isNotEmpty) 
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(6)),
+                            child: Row(
+                              children: [
+                                Icon(LucideIcons.userCheck, size: 12, color: Colors.grey[400]),
+                                const SizedBox(width: 4),
+                                Text("Clipper: $sourceName", style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 10)),
+                              ],
+                            )
+                          ),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -162,25 +170,25 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                     Text(title, style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 24),
 
-                    // ACTION BUTTONS (HIDUP SEKARANG)
+                    // ACTION BUTTONS 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _actionButton(LucideIcons.thumbsUp, "Like", () {}), // Gimmick dulu
-                        _actionButton(LucideIcons.share2, "Bagikan", _shareVideo), // AKTIF
+                        _actionButton(LucideIcons.thumbsUp, "Like", () {}), 
+                        _actionButton(LucideIcons.share2, "Bagikan", _shareVideo), 
                         _actionButton(
                           _isSaved ? LucideIcons.bookmarkMinus : LucideIcons.bookmarkPlus, 
                           _isSaved ? "Disimpan" : "Simpan", 
-                          _toggleSave, // AKTIF
+                          _toggleSave, 
                           isActive: _isSaved
                         ),
-                        _actionButton(LucideIcons.flag, "Lapor", () {}), // Gimmick
+                        _actionButton(LucideIcons.flag, "Lapor", () {}), 
                       ],
                     ),
 
                     const SizedBox(height: 24), const Divider(color: Colors.white10), const SizedBox(height: 24),
 
-                    // PROFILE USTADZ (KLIKABLE)
+                    // PROFILE USTADZ (KLIKABLE + CENTANG BIRU)
                     GestureDetector(
                       onTap: () {
                         if (daiId != null) {
@@ -206,7 +214,18 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(author, style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(author, style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    ),
+                                    // LOGIC MUNCULIN CENTANG BIRU DI VIDEO
+                                    if (isVerified) ...[
+                                      const SizedBox(width: 4),
+                                      const Icon(Icons.verified, color: Colors.blueAccent, size: 16),
+                                    ],
+                                  ],
+                                ),
                                 Text("Klik untuk lihat profil", style: GoogleFonts.poppins(color: Colors.grey, fontSize: 12)),
                               ],
                             ),

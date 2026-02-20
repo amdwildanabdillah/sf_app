@@ -30,9 +30,11 @@ class _HomeScreenState extends State<HomeScreen> {
   final user = Supabase.instance.client.auth.currentUser;
 
   // --- QUERY UTAMA: AMBIL DARI VIEW 'kajian_lengkap' ---
+  // SUDAH DITAMBAH GATEKEEPING: .eq('status', 'approved')
   final Future<List<Map<String, dynamic>>> _kajianFuture = Supabase.instance.client
       .from('kajian_lengkap')
       .select()
+      .eq('status', 'approved') 
       .order('created_at', ascending: false);
 
   String? get _photoUrl {
@@ -103,13 +105,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 return SizedBox(height: 100, child: Center(child: Text("Kategori ini kosong", style: GoogleFonts.poppins(color: Colors.grey))));
               }
 
-              final List<Map<String, String>> uiList = displayedList.map((e) => {
-                'title': e['title'].toString(),
+              // SUDAH DIUBAH JADI dynamic DAN DITAMBAHIN ID LENGKAP
+              final List<Map<String, dynamic>> uiList = displayedList.map((e) => {
+                'id': e['id'], 
+                'title': e['title']?.toString() ?? 'Tanpa Judul',
                 'author': e['dai_name']?.toString() ?? 'Ustadz', 
                 'img': e['thumbnail_url']?.toString() ?? '',
-                'video_url': e['video_url'].toString(),
+                'video_url': e['video_url']?.toString() ?? '',
                 'desc': e['description']?.toString() ?? '',
                 'category': e['category']?.toString() ?? 'Umum',
+                'dai_id': e['dai_id'],       
+                'dai_avatar': e['dai_avatar'] 
               }).toList();
 
               return _buildHorizontalList(uiList, isLarge: true);
@@ -126,7 +132,8 @@ class _HomeScreenState extends State<HomeScreen> {
   // ===============================================================
   Widget _buildHeroCarousel() {
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: Supabase.instance.client.from('kajian_lengkap').select().eq('is_featured', true).limit(5),
+      // SUDAH DITAMBAH GATEKEEPING: .eq('status', 'approved')
+      future: Supabase.instance.client.from('kajian_lengkap').select().eq('status', 'approved').eq('is_featured', true).limit(5),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return _buildSingleHeroItem(
@@ -149,12 +156,18 @@ class _HomeScreenState extends State<HomeScreen> {
               tag: item['category'] ?? 'Umum',
               imageUrl: item['thumbnail_url'] ?? '',
               onTap: () {
+                 // SUDAH BAWA DATA ID LENGKAP BIAR BISA SAVE & CEK PROFIL
                  Navigator.push(context, MaterialPageRoute(builder: (context) => VideoDetailScreen(videoData: {
+                   'id': item['id'],
                    'title': item['title'],
                    'author': item['dai_name'] ?? 'Ustadz',
                    'video_url': item['video_url'],
                    'img': item['thumbnail_url'],
-                   'desc': item['description']
+                   'desc': item['description'],
+                   'dai_id': item['dai_id'],       
+                   'dai_avatar': item['dai_avatar'],
+                   'is_verified': item['is_verified'], 
+                    'source_account_name': item['source_account_name'], 
                  })));
               },
             );
@@ -202,7 +215,8 @@ class _HomeScreenState extends State<HomeScreen> {
   // ===============================================================
   // 3. WIDGET LIST VIDEO HORIZONTAL
   // ===============================================================
-  Widget _buildHorizontalList(List<Map<String, String>> data, {required bool isLarge}) {
+  // SUDAH DIUBAH JADI List<Map<String, dynamic>>
+  Widget _buildHorizontalList(List<Map<String, dynamic>> data, {required bool isLarge}) {
     return SizedBox(
       height: isLarge ? 220 : 160, 
       child: ListView.separated(
@@ -330,7 +344,7 @@ class _HomeScreenState extends State<HomeScreen> {
                  await Supabase.instance.client.auth.signOut(); 
                  if(mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => const LoginScreen()), (route) => false);
                }, color: Colors.redAccent),
-             const SizedBox(height: 20),
+              const SizedBox(height: 20),
           ]
         )
       )
