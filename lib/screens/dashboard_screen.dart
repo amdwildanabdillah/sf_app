@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:sanadflow_mobile/screens/admin_screen.dart'; // Pastikan import ini ada
+import 'package:sanadflow_mobile/screens/admin_screen.dart';
+import 'package:sanadflow_mobile/screens/manage_dai_screen.dart'; // <--- IMPORT MANAGE DAI
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -23,11 +24,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _checkRole();
   }
 
-  // --- 1. CEK IDENTITAS (KEBAL BANTING) ---
+  // --- 1. CEK IDENTITAS ---
   Future<void> _checkRole() async {
     if (user == null) return;
     
-    // A. BACKDOOR DEVELOPER (JALUR KHUSUS)
+    // A. BACKDOOR DEVELOPER
     final email = user!.email ?? '';
     if (email.contains('amd.wildanabdillah') || email.contains('vixel')) {
         if (mounted) {
@@ -40,7 +41,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return; 
     }
 
-    // B. JALUR RESMI (DATABASE)
+    // B. JALUR RESMI
     try {
       final data = await Supabase.instance.client
           .from('profiles')
@@ -65,7 +66,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // --- 2. LOGIC PENGAJUAN KONTRIBUTOR ---
+  // --- 2. PENGAJUAN KONTRIBUTOR ---
   Future<void> _applyForContributor() async {
     setState(() => _isLoading = true);
     try {
@@ -91,14 +92,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // --- 3. LOGIC PIN / UNPIN (HIGHLIGHT) ---
+  // --- 3. PIN / UNPIN ---
   Future<void> _togglePin(String id, bool currentStatus) async {
     try {
       await Supabase.instance.client.from('kajian').update({
-        'is_featured': !currentStatus // Balik statusnya
+        'is_featured': !currentStatus 
       }).eq('id', id);
       
-      setState(() {}); // Refresh UI Lokal (Trigger FutureBuilder ulang)
+      setState(() {}); 
       
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: !currentStatus ? Colors.green : Colors.orange,
@@ -109,9 +110,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // --- 4. LOGIC HAPUS KONTEN ---
+  // --- 4. HAPUS KONTEN ---
   Future<void> _deleteKajian(String id) async {
-    // Dialog Konfirmasi
     final confirm = await showDialog(
       context: context, 
       builder: (c) => AlertDialog(
@@ -128,7 +128,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (confirm == true) {
       try {
         await Supabase.instance.client.from('kajian').delete().eq('id', id);
-        setState(() {}); // Refresh UI
+        setState(() {}); 
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Konten dihapus.")));
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Gagal menghapus.")));
@@ -141,17 +141,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) return const Scaffold(backgroundColor: Color(0xFF121212), body: Center(child: CircularProgressIndicator()));
 
-    // WAJAH 1: VIEW (TAMU / BELUM DIACC)
-    if (_role == 'viewer' && _contributorStatus == 'none') {
-      return _buildRestrictedView();
-    }
-    
-    // WAJAH 2: PENDING (SEDANG DITINJAU)
-    if (_contributorStatus == 'pending' && _role != 'admin') {
-      return _buildPendingView();
-    }
+    if (_role == 'viewer' && _contributorStatus == 'none') return _buildRestrictedView();
+    if (_contributorStatus == 'pending' && _role != 'admin') return _buildPendingView();
 
-    // WAJAH 3: WORKSPACE (ADMIN / CONTRIBUTOR)
     String titleText = _role == 'admin' ? "Administrator Panel" : "Contributor Studio";
 
     return Scaffold(
@@ -166,14 +158,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // TOMBOL UPLOAD VIDEO BARU
             _buildUploadCard(),
+            
+            const SizedBox(height: 16),
+            
+            // TOMBOL KELOLA DAI (KHUSUS ADMIN)
+            if (_role == 'admin') _buildManageDaiCard(),
             
             const SizedBox(height: 30),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(_role == 'admin' ? "Semua Konten Masuk" : "Kajian Saya", style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                IconButton(onPressed: () => setState((){}), icon: Icon(LucideIcons.refreshCw, color: Colors.grey, size: 18)) // Tombol Refresh Manual
+                IconButton(onPressed: () => setState((){}), icon: const Icon(LucideIcons.refreshCw, color: Colors.grey, size: 18)) 
               ],
             ),
             const SizedBox(height: 16),
@@ -232,11 +230,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildUploadCard() {
     return GestureDetector(
       onTap: () async {
-        // Navigasi ke AdminScreen buat upload, tunggu hasil kembaliannya
         final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminScreen()));
-        if (result == true) {
-          setState(() {}); // Refresh kalau ada upload baru
-        }
+        if (result == true) setState(() {}); 
       },
       child: Container(
         padding: const EdgeInsets.all(20),
@@ -258,10 +253,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // --- MENU BARU: KELOLA DATABASE DAI (Hanya Muncul Buat Admin) ---
+  Widget _buildManageDaiCard() {
+    return GestureDetector(
+      onTap: () {
+        // Arahkan ke Halaman Nambah Dai (Atau kalau perlu layar khusus list Dai bisa ditambahin nanti)
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const ManageDaiScreen()));
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.blueAccent.withOpacity(0.3))),
+        child: Row(
+          children: [
+             Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.2), shape: BoxShape.circle), child: const Icon(LucideIcons.users, color: Colors.blueAccent)),
+             const SizedBox(width: 16),
+             Column(
+               crossAxisAlignment: CrossAxisAlignment.start,
+               children: [
+                 Text("Kelola Database Dai", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                 Text("Tambah profil Penceramah & Sanad", style: GoogleFonts.poppins(color: Colors.grey, fontSize: 12)),
+               ],
+             )
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildVideoList() {
-    // Ambil Data pakai FutureBuilder
-    // Kita panggil kajian_lengkap view biar datanya lengkap kalau ada
-    // Tapi kalau belum ada view-nya, pake tabel kajian biasa gapapa
     final query = Supabase.instance.client.from('kajian').select().order('created_at', ascending: false);
 
     return FutureBuilder(
@@ -272,7 +291,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         var allData = snapshot.data as List<dynamic>;
         var displayedData = allData;
 
-        // Filter: Kalau bukan admin, cuma liat video yang dia upload
         if (_role != 'admin') {
            displayedData = allData.where((item) => item['uploader_id'] == user!.id).toList();
         }
@@ -310,7 +328,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: item['thumbnail_url'] == null ? const Icon(Icons.movie, color: Colors.grey) : null,
                     ),
                     if (isFeatured)
-                      Positioned(top: 0, left: 0, child: Icon(Icons.star, size: 16, color: Colors.orange))
+                      const Positioned(top: 0, left: 0, child: Icon(Icons.star, size: 16, color: Colors.orange))
                   ],
                 ),
                 title: Text(item['title'] ?? 'Tanpa Judul', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -322,12 +340,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
                 
-                // --- MENU SAKTI (TITIK TIGA) ---
                 trailing: PopupMenuButton(
                   icon: const Icon(Icons.more_vert, color: Colors.white),
                   color: const Color(0xFF2C2C2C),
                   itemBuilder: (context) => [
-                    // MENU PIN (Hanya Admin)
                     if (_role == 'admin')
                       PopupMenuItem(
                         value: 'pin',
@@ -338,13 +354,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ]),
                       ),
                     
-                    // MENU EDIT
                     PopupMenuItem(
                       value: 'edit',
                       child: Row(children: const [Icon(LucideIcons.edit, color: Colors.blue, size: 18), SizedBox(width: 10), Text("Edit", style: TextStyle(color: Colors.white))]),
                     ),
                     
-                    // MENU HAPUS
                     PopupMenuItem(
                       value: 'delete',
                       child: Row(children: const [Icon(LucideIcons.trash2, color: Colors.red, size: 18), SizedBox(width: 10), Text("Hapus", style: TextStyle(color: Colors.white))]),
@@ -354,9 +368,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     if (val == 'pin') _togglePin(item['id'], isFeatured);
                     if (val == 'delete') _deleteKajian(item['id']);
                     if (val == 'edit') {
-                        // Navigasi ke AdminScreen mode Edit (Bawa Data)
                         final res = await Navigator.push(context, MaterialPageRoute(builder: (context) => AdminScreen(editData: item)));
-                        if (res == true) setState((){}); // Refresh list setelah edit
+                        if (res == true) setState((){}); 
                     }
                   },
                 ),

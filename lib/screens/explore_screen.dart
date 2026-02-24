@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -58,6 +59,31 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
+      extendBodyBehindAppBar: true, // WAJIB ADA BIAR BLUR-NYA JALAN
+      
+      // --- HEADER GLASSMORPHISM ---
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: Colors.black.withOpacity(0.3)),
+          ),
+        ),
+        title: Text(
+          'SANADFLOW', 
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w300, 
+            letterSpacing: 4, 
+            fontSize: 20, 
+            color: Colors.white
+          )
+        ),
+      ),
+
       body: SafeArea(
         child: Column(
           children: [
@@ -134,7 +160,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                    'id': item['id'],
                                    'dai_avatar': item['dai_avatar'], // Penting buat profil
                                    'is_verified': item['is_verified'], 
-                                    'source_account_name': item['source_account_name'],
+                                   'source_account_name': item['source_account_name'],
                               })));
                             },
                           ),
