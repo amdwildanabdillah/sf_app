@@ -27,7 +27,6 @@ dependencies:
   # --- VIDEO PLAYER (INI YANG TADI HILANG) ---
   video_player: ^2.10.1
   chewie: ^1.13.0
-  youtube_player_flutter: ^9.1.3
   
   # --- UTILITIES ---
   url_launcher: ^6.3.2      # Buat WA & Link Sosmed
@@ -40,6 +39,7 @@ dependencies:
   google_sign_in: ^6.2.1
   image_picker: ^1.2.1
   file_picker: ^10.3.10
+  youtube_player_iframe: ^5.2.2
 
 dev_dependencies:
   flutter_test:

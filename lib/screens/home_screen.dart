@@ -115,7 +115,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 'desc': e['description']?.toString() ?? '',
                 'category': e['category']?.toString() ?? 'Umum',
                 'dai_id': e['dai_id'],       
-                'dai_avatar': e['dai_avatar'] 
+                'dai_avatar': e['dai_avatar'],
+                'is_verified': e['is_verified'], // <--- TAMBAHKAN INI
+                'source_account_name': e['source_account_name'] // <--- TAMBAHKAN INI JUGA BIAR CLIPPER NYALA
               }).toList();
 
               return _buildHorizontalList(uiList, isLarge: true);

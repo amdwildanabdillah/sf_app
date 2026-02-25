@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart'; // <--- MENGGUNAKAN IFRAME
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart'; 
 import 'package:sanadflow_mobile/screens/dai_profile_screen.dart'; 
@@ -24,11 +24,20 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
   void initState() {
     super.initState();
     final String videoUrl = widget.videoData['video_url'] ?? '';
-    final String? videoId = YoutubePlayer.convertUrlToId(videoUrl);
+    
+    // --- CARA AMBIL VIDEO ID KHUSUS IFRAME ---
+    final String? videoId = YoutubePlayerController.convertUrlToId(videoUrl);
 
-    _controller = YoutubePlayerController(
-      initialVideoId: videoId ?? '',
-      flags: const YoutubePlayerFlags(autoPlay: true, mute: false, enableCaption: false),
+    // --- INISIALISASI CONTROLLER IFRAME ---
+    _controller = YoutubePlayerController.fromVideoId(
+      videoId: videoId ?? '',
+      autoPlay: true,
+      params: const YoutubePlayerParams(
+        showControls: true,
+        showFullscreenButton: true,
+        loop: false,
+        mute: false,
+      ),
     );
 
     _checkIfSaved(); 
@@ -89,13 +98,8 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
   }
 
   @override
-  void deactivate() {
-    _controller.pause();
-    super.deactivate();
-  }
-  @override
   void dispose() {
-    _controller.dispose();
+    _controller.close(); // Cara nutup iframe pakai .close()
     super.dispose();
   }
 
@@ -110,19 +114,22 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
     final sourceName = widget.videoData['source_account_name'];
     final daiId = widget.videoData['dai_id'];
     final daiAvatar = widget.videoData['dai_avatar'];
-    final isVerified = widget.videoData['is_verified'] == true; // Tangkap status verified
+    final isVerified = widget.videoData['is_verified'] == true; 
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       body: SafeArea(
         child: Column(
           children: [
-            // PLAYER
+            // PLAYER WEB-FRIENDLY (IFRAME)
             Stack(
               children: [
                 SizedBox(
                   height: 250, width: double.infinity,
-                  child: YoutubePlayer(controller: _controller, showVideoProgressIndicator: true, progressIndicatorColor: const Color(0xFF2962FF)),
+                  child: YoutubePlayer(
+                    controller: _controller,
+                    aspectRatio: 16 / 9,
+                  ),
                 ),
                 Positioned(
                   top: 10, left: 10,
@@ -150,7 +157,6 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                           child: Text(category.toUpperCase(), style: GoogleFonts.poppins(color: const Color(0xFF2962FF), fontSize: 10, fontWeight: FontWeight.bold)),
                         ),
                         const Spacer(),
-                        // TAMPILAN CLIPPER / SUMBER VIDEO
                         if (sourceName != null && sourceName.toString().isNotEmpty) 
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -206,8 +212,8 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                           CircleAvatar(
                             radius: 24,
                             backgroundColor: Colors.grey[800],
-                            backgroundImage: daiAvatar != null ? NetworkImage(daiAvatar) : null,
-                            child: daiAvatar == null ? const Icon(LucideIcons.user, color: Colors.white) : null,
+                            backgroundImage: daiAvatar != null && daiAvatar.toString().isNotEmpty ? NetworkImage(daiAvatar) : null,
+                            child: daiAvatar == null || daiAvatar.toString().isEmpty ? const Icon(LucideIcons.user, color: Colors.white) : null,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -219,7 +225,6 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                                     Flexible(
                                       child: Text(author, style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
                                     ),
-                                    // LOGIC MUNCULIN CENTANG BIRU DI VIDEO
                                     if (isVerified) ...[
                                       const SizedBox(width: 4),
                                       const Icon(Icons.verified, color: Colors.blueAccent, size: 16),

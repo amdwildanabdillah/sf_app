@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart'; // <--- MENGGUNAKAN IFRAME
 import 'package:flutter/services.dart';
 
 class UniversalVideoPlayer extends StatefulWidget {
@@ -19,10 +19,7 @@ class UniversalVideoPlayer extends StatefulWidget {
 }
 
 class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
-  // Controller untuk YouTube
   YoutubePlayerController? _youtubeController;
-  
-  // Controller untuk MP4 (Chewie)
   VideoPlayerController? _videoPlayerController;
   ChewieController? _chewieController;
 
@@ -37,19 +34,19 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
 
   Future<void> _initializePlayer() async {
     try {
-      // 1. Cek apakah ini Link YouTube?
-      String? videoId = YoutubePlayer.convertUrlToId(widget.videoUrl);
+      // 1. Cek apakah ini Link YouTube? (Pake cara Iframe)
+      String? videoId = YoutubePlayerController.convertUrlToId(widget.videoUrl);
 
-      if (videoId != null) {
+      if (videoId != null && videoId.isNotEmpty) {
         // --- MODE YOUTUBE ---
         setState(() => _isYoutube = true);
-        _youtubeController = YoutubePlayerController(
-          initialVideoId: videoId,
-          flags: YoutubePlayerFlags(
-            autoPlay: widget.autoPlay,
-            mute: false,
-            forceHD: true,
-            enableCaption: true,
+        _youtubeController = YoutubePlayerController.fromVideoId(
+          videoId: videoId,
+          autoPlay: widget.autoPlay,
+          params: const YoutubePlayerParams(
+            showControls: true,
+            showFullscreenButton: true,
+            loop: false,
           ),
         );
       } else {
@@ -61,15 +58,14 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
         
         _chewieController = ChewieController(
           videoPlayerController: _videoPlayerController!,
-          aspectRatio: _videoPlayerController!.value.aspectRatio, // Otomatis nyesuain (Portrait/Landscape)
+          aspectRatio: _videoPlayerController!.value.aspectRatio, 
           autoPlay: widget.autoPlay,
           looping: false,
           errorBuilder: (context, errorMessage) {
             return Center(child: Text(errorMessage, style: const TextStyle(color: Colors.white)));
           },
-          // Kustomisasi UI Chewie biar Vixel banget
           materialProgressColors: ChewieProgressColors(
-            playedColor: const Color(0xFF2962FF), // Biru Vixel
+            playedColor: const Color(0xFF2962FF), 
             handleColor: Colors.white,
             backgroundColor: Colors.grey.shade800,
             bufferedColor: Colors.grey.shade600,
@@ -85,11 +81,10 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
 
   @override
   void dispose() {
-    _youtubeController?.dispose();
+    _youtubeController?.close();
     _videoPlayerController?.dispose();
     _chewieController?.dispose();
     
-    // Balikin orientasi ke Portrait pas keluar player
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     super.dispose();
   }
@@ -113,13 +108,12 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
 
     if (_isYoutube) {
       return _youtubeController != null
-          ? YoutubePlayerBuilder(
-              player: YoutubePlayer(
+          ? SizedBox(
+              height: 250, width: double.infinity,
+              child: YoutubePlayer(
                 controller: _youtubeController!,
-                showVideoProgressIndicator: true,
-                progressIndicatorColor: const Color(0xFF2962FF),
+                aspectRatio: 16 / 9,
               ),
-              builder: (context, player) => player,
             )
           : const Center(child: CircularProgressIndicator());
     } else {

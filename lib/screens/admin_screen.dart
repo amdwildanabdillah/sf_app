@@ -4,8 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart'; 
-import 'package:sanadflow_mobile/screens/manage_dai_screen.dart'; // Pastikan file ini ada
+import 'package:youtube_player_iframe/youtube_player_iframe.dart'; // <--- MENGGUNAKAN IFRAME
+import 'package:sanadflow_mobile/screens/manage_dai_screen.dart'; 
 
 class AdminScreen extends StatefulWidget {
   // Parameter ini diisi kalau mode EDIT. Kalau Upload Baru, ini null.
@@ -176,9 +176,9 @@ class _AdminScreenState extends State<AdminScreen> {
         await Supabase.instance.client.storage.from('images').upload(path, _thumbnailFile!);
         finalThumbnailUrl = Supabase.instance.client.storage.from('images').getPublicUrl(path);
       } else if (!_isEditMode && platformType == 'youtube') {
-        // 2. Kalau BARU & YouTube & Gak upload gambar -> Auto Fetch
-        final videoId = YoutubePlayer.convertUrlToId(_videoUrlController.text);
-        if (videoId != null) {
+        // 2. Kalau BARU & YouTube & Gak upload gambar -> Auto Fetch pake Iframe method
+        final videoId = YoutubePlayerController.convertUrlToId(_videoUrlController.text);
+        if (videoId != null && videoId.isNotEmpty) {
           finalThumbnailUrl = 'https://img.youtube.com/vi/$videoId/maxresdefault.jpg';
         }
       }
@@ -189,7 +189,6 @@ class _AdminScreenState extends State<AdminScreen> {
       }
 
       // B. SIAPKAN DATA
-      // FIX ERROR: Tambahkan 'Map<String, dynamic>' agar bisa menampung int dan string
       final Map<String, dynamic> dataToSave = {
         'title': _titleController.text,
         'video_url': _videoUrlController.text,
@@ -206,7 +205,7 @@ class _AdminScreenState extends State<AdminScreen> {
       if (!_isEditMode) {
         // --- MODE INSERT (BARU) ---
         dataToSave['uploader_id'] = user?.id; // Cuma set uploader pas awal
-        dataToSave['views'] = 0; // Int aman masuk sini karena Map<String, dynamic>
+        dataToSave['views'] = 0; 
         await Supabase.instance.client.from('kajian').insert(dataToSave);
       } else {
         // --- MODE UPDATE (EDIT) ---
@@ -323,9 +322,9 @@ class _AdminScreenState extends State<AdminScreen> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.white24),
                     image: _thumbnailFile != null 
-                      ? DecorationImage(image: FileImage(_thumbnailFile!), fit: BoxFit.cover) // Gambar Baru Upload
+                      ? DecorationImage(image: FileImage(_thumbnailFile!), fit: BoxFit.cover) 
                       : (_existingThumbnailUrl != null 
-                          ? DecorationImage(image: NetworkImage(_existingThumbnailUrl!), fit: BoxFit.cover) // Gambar Lama dari DB
+                          ? DecorationImage(image: NetworkImage(_existingThumbnailUrl!), fit: BoxFit.cover) 
                           : null)
                   ),
                   child: (_thumbnailFile == null && _existingThumbnailUrl == null)
@@ -338,7 +337,7 @@ class _AdminScreenState extends State<AdminScreen> {
                           Text("(Wajib manual jika bukan YouTube)", style: GoogleFonts.poppins(color: Colors.redAccent, fontSize: 10)),
                         ],
                       )
-                    : null, // Kalau ada gambar, child kosong biar gambarnya kelihatan
+                    : null, 
                 ),
               ),
               if(_isEditMode) Padding(padding:const EdgeInsets.only(top:5), child: Text("*Tap gambar untuk mengganti", style: TextStyle(color: Colors.grey[600], fontSize: 10))),
