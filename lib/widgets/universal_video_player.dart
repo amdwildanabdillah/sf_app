@@ -1,140 +1,259 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
-import 'package:webview_flutter/webview_flutter.dart'; // <--- TAMBAHAN WEBVIEW
-import 'package:flutter/services.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
-enum PlayerMode { youtube, mp4, webview }
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+// ignore: undefined_prefixed_name
+import 'dart:ui' as ui;
+
+enum PlayerMode { youtube, mp4, webview, iframeWeb }
 
 class UniversalVideoPlayer extends StatefulWidget {
   final String videoUrl;
   final bool autoPlay;
 
   const UniversalVideoPlayer({
-    super.key, 
-    required this.videoUrl, 
-    this.autoPlay = true
+    super.key,
+    required this.videoUrl,
+    this.autoPlay = false,
   });
 
   @override
-  State<UniversalVideoPlayer> createState() => _UniversalVideoPlayerState();
+  State<UniversalVideoPlayer> createState() =>
+      _UniversalVideoPlayerState();
 }
 
-class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
+class _UniversalVideoPlayerState
+    extends State<UniversalVideoPlayer> {
   PlayerMode _mode = PlayerMode.mp4;
   bool _isError = false;
 
-  // Controllers
   YoutubePlayerController? _youtubeController;
-  VideoPlayerController? _videoPlayerController;
+  VideoPlayerController? _videoController;
   ChewieController? _chewieController;
-  late final WebViewController _webViewController;
+  WebViewController? _webViewController;
 
   @override
   void initState() {
     super.initState();
-    _initializePlayer();
+    _initPlayer();
   }
 
-  Future<void> _initializePlayer() async {
+  Future<void> _initPlayer() async {
     try {
-      final url = widget.videoUrl.toLowerCase();
+      final lowerUrl = widget.videoUrl.toLowerCase();
 
-      // --- 1. DETEKSI YOUTUBE ---
-      String? ytId = YoutubePlayerController.convertUrlToId(widget.videoUrl);
+      /// =============================
+      /// 1️⃣ YOUTUBE
+      /// =============================
+      String? ytId =
+          YoutubePlayerController.convertUrlToId(widget.videoUrl);
+
       if (ytId != null && ytId.isNotEmpty) {
-        setState(() => _mode = PlayerMode.youtube);
-        _youtubeController = YoutubePlayerController.fromVideoId(
+        _mode = PlayerMode.youtube;
+
+        _youtubeController =
+            YoutubePlayerController.fromVideoId(
           videoId: ytId,
           autoPlay: widget.autoPlay,
           params: const YoutubePlayerParams(
             showControls: true,
             showFullscreenButton: true,
             loop: false,
-            origin: 'https://www.youtube.com'
           ),
         );
+
+        setState(() {});
         return;
       }
 
-      // --- 2. DETEKSI INSTAGRAM / TIKTOK (WEBVIEW EMBED) ---
-      if (url.contains('instagram.com') || url.contains('tiktok.com')) {
-        setState(() => _mode = PlayerMode.webview);
-        String finalUrl = widget.videoUrl;
+      /// =============================
+      /// 2️⃣ INSTAGRAM / TIKTOK
+      /// =============================
+      if (lowerUrl.contains("instagram.com") ||
+          lowerUrl.contains("tiktok.com")) {
+        if (kIsWeb) {
+          _mode = PlayerMode.iframeWeb;
+          setState(() {});
+          return;
+        } else {
+          _mode = PlayerMode.webview;
 
-        // Trik Embed Instagram (buang parameter ?igsh=, lalu tambah /embed)
-        if (url.contains('instagram.com')) {
-          finalUrl = widget.videoUrl.split('?').first; 
-          if (!finalUrl.endsWith('/')) finalUrl += '/';
-          finalUrl += 'embed/';
-        } 
-        // Trik Embed TikTok
-        else if (url.contains('tiktok.com')) {
-          final RegExp regex = RegExp(r'video\/(\d+)');
-          final match = regex.firstMatch(widget.videoUrl);
-          if (match != null) {
-            finalUrl = 'https://www.tiktok.com/embed/v2/${match.group(1)}';
+          String embedUrl = widget.videoUrl;
+
+          if (lowerUrl.contains("instagram.com")) {
+            embedUrl = widget.videoUrl.split("?").first;
+            if (!embedUrl.endsWith("/")) {
+              embedUrl += "/";
+            }
+            embedUrl += "embed/";
           }
-        }
 
-        _webViewController = WebViewController()
-          ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..loadRequest(Uri.parse(finalUrl));
-        return;
+          if (lowerUrl.contains("tiktok.com")) {
+            final regex = RegExp(r'video\/(\d+)');
+            final match = regex.firstMatch(widget.videoUrl);
+            if (match != null) {
+              embedUrl =
+                  "https://www.tiktok.com/embed/v2/${match.group(1)}";
+            }
+          }
+
+          _webViewController = WebViewController()
+            ..setJavaScriptMode(
+                JavaScriptMode.unrestricted)
+            ..loadRequest(Uri.parse(embedUrl));
+
+          setState(() {});
+          return;
+        }
       }
 
-      // --- 3. DETEKSI MP4 / SUPABASE STORAGE (CHEWIE) ---
-      setState(() => _mode = PlayerMode.mp4);
-      _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
-      await _videoPlayerController!.initialize();
-      _chewieController = ChewieController(
-        videoPlayerController: _videoPlayerController!,
-        aspectRatio: _videoPlayerController!.value.aspectRatio, 
-        autoPlay: widget.autoPlay, looping: false,
-        materialProgressColors: ChewieProgressColors(playedColor: const Color(0xFF2962FF), handleColor: Colors.white, backgroundColor: Colors.grey.shade800),
-      );
-      setState(() {});
+      /// =============================
+      /// 3️⃣ MP4 DIRECT LINK
+      /// =============================
+      _mode = PlayerMode.mp4;
 
+      _videoController =
+          VideoPlayerController.networkUrl(
+        Uri.parse(widget.videoUrl),
+      );
+
+      await _videoController!.initialize();
+
+      _chewieController = ChewieController(
+        videoPlayerController: _videoController!,
+        aspectRatio:
+            _videoController!.value.aspectRatio == 0
+                ? 16 / 9
+                : _videoController!.value.aspectRatio,
+        autoPlay: widget.autoPlay,
+        allowFullScreen: true,
+      );
+
+      setState(() {});
     } catch (e) {
-      debugPrint("Error Init Video: $e");
-      setState(() => _isError = true);
+      debugPrint("Video Init Error: $e");
+      _isError = true;
+      setState(() {});
     }
+  }
+
+  /// =============================
+  /// Web Iframe Builder
+  /// =============================
+  Widget _buildWebIframe() {
+    String embedUrl = widget.videoUrl;
+
+    if (widget.videoUrl.contains("instagram.com")) {
+      embedUrl = widget.videoUrl.split("?").first;
+      if (!embedUrl.endsWith("/")) {
+        embedUrl += "/";
+      }
+      embedUrl += "embed/";
+    }
+
+    if (widget.videoUrl.contains("tiktok.com")) {
+      final regex = RegExp(r'video\/(\d+)');
+      final match = regex.firstMatch(widget.videoUrl);
+      if (match != null) {
+        embedUrl =
+            "https://www.tiktok.com/embed/v2/${match.group(1)}";
+      }
+    }
+
+    final viewType =
+        "iframe-${widget.videoUrl.hashCode}";
+
+    // ignore: undefined_prefixed_name
+    ui.platformViewRegistry.registerViewFactory(
+      viewType,
+      (int viewId) {
+        final iframe = html.IFrameElement()
+          ..src = embedUrl
+          ..style.border = "none"
+          ..allowFullscreen = true;
+
+        return iframe;
+      },
+    );
+
+    return HtmlElementView(viewType: viewType);
   }
 
   @override
   void dispose() {
     _youtubeController?.close();
-    _videoPlayerController?.dispose();
+    _videoController?.dispose();
     _chewieController?.dispose();
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isError) {
-      return Container(height: 250, color: Colors.black, child: const Center(child: Text("Gagal memuat video", style: TextStyle(color: Colors.white))));
+      return Container(
+        height: 250,
+        color: Colors.black,
+        child: const Center(
+          child: Text(
+            "Gagal memuat video",
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      );
     }
 
-    // TAMPILAN YOUTUBE
-    if (_mode == PlayerMode.youtube && _youtubeController != null) {
-      return SizedBox(height: 250, width: double.infinity, child: YoutubePlayer(controller: _youtubeController!, aspectRatio: 16 / 9));
-    } 
-    
-    // TAMPILAN IG & TIKTOK (WEBVIEW) -> Dibuat Agak Tinggi (Vertical Video)
-    else if (_mode == PlayerMode.webview) {
-      return SizedBox(
-        height: 450, width: double.infinity,
-        child: WebViewWidget(controller: _webViewController),
+    if (_mode == PlayerMode.youtube &&
+        _youtubeController != null) {
+      return YoutubePlayer(
+        controller: _youtubeController!,
+        aspectRatio: 16 / 9,
       );
-    } 
-    
-    // TAMPILAN MP4 RAW
-    else if (_mode == PlayerMode.mp4 && _chewieController != null && _chewieController!.videoPlayerController.value.isInitialized) {
-      return AspectRatio(aspectRatio: _videoPlayerController!.value.aspectRatio, child: Chewie(controller: _chewieController!));
-    } 
-    
-    return const SizedBox(height: 250, child: Center(child: CircularProgressIndicator(color: Color(0xFF2962FF))));
+    }
+
+    if (kIsWeb &&
+        _mode == PlayerMode.iframeWeb) {
+      return SizedBox(
+        height: 400,
+        width: double.infinity,
+        child: _buildWebIframe(),
+      );
+    }
+
+    if (_mode == PlayerMode.webview &&
+        _webViewController != null) {
+      return SizedBox(
+        height: 450,
+        width: double.infinity,
+        child: WebViewWidget(
+          controller: _webViewController!,
+        ),
+      );
+    }
+
+    if (_mode == PlayerMode.mp4 &&
+        _chewieController != null &&
+        _videoController!.value.isInitialized) {
+      return AspectRatio(
+        aspectRatio:
+            _videoController!.value.aspectRatio == 0
+                ? 16 / 9
+                : _videoController!.value.aspectRatio,
+        child: Chewie(
+          controller: _chewieController!,
+        ),
+      );
+    }
+
+    return const SizedBox(
+      height: 250,
+      child: Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
   }
 }

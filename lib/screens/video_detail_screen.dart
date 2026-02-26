@@ -77,7 +77,15 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
             // --- PLAYER SAKTI ---
             Stack(
               children: [
-                UniversalVideoPlayer(videoUrl: videoUrl, autoPlay: true), // <--- INI KUNCINYA
+                  SafeArea(
+                    child: AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: UniversalVideoPlayer(
+                        videoUrl: videoUrl,
+                        autoPlay: true, // <--- INI KUNCINYA
+                      ),
+                  ),
+                ),
                 Positioned(
                   top: 10, left: 10,
                   child: CircleAvatar(
