@@ -50,15 +50,32 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
       if (ytId != null && ytId.isNotEmpty) {
         setState(() => _mode = PlayerMode.youtube);
         
-        _youtubeController = YoutubePlayerController.fromVideoId(
-          videoId: ytId,
-          autoPlay: widget.autoPlay,
-          params: const YoutubePlayerParams(
-            showControls: true, 
-            showFullscreenButton: true, 
-            loop: false,
-          ),
-        );
+        // 🔥 LOGIC SAKTI: PISAHKAN PARAMETER WEB & HP SECARA EKSPLISIT 🔥
+        if (kIsWeb) {
+          // MESIN WEB: Polosan biar gak White Screen
+          _youtubeController = YoutubePlayerController.fromVideoId(
+            videoId: ytId,
+            autoPlay: widget.autoPlay,
+            params: const YoutubePlayerParams(
+              showControls: true, 
+              showFullscreenButton: true, 
+              loop: false,
+            ),
+          );
+        } else {
+          // MESIN HP: Topeng iPhone murni (Mengembalikan kekuatan app yang muter di dalem!)
+          _youtubeController = YoutubePlayerController.fromVideoId(
+            videoId: ytId,
+            autoPlay: widget.autoPlay,
+            params: const YoutubePlayerParams(
+              showControls: true, 
+              showFullscreenButton: true, 
+              loop: false,
+              origin: 'https://www.youtube.com',
+              userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+            ),
+          );
+        }
         return;
       }
 
@@ -66,7 +83,6 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
       if (url.contains('instagram.com') || url.contains('tiktok.com')) {
         setState(() => _mode = PlayerMode.webview);
         
-        // HANYA jalanin WebView kalau di HP. Kalau di Web dilewatin biar ga Blank!
         if (!kIsWeb) {
           String finalUrl = widget.videoUrl;
           if (url.contains('instagram.com')) {
@@ -121,16 +137,19 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
       return Container(height: 250, color: Colors.black, child: const Center(child: Text("Gagal memuat video", style: TextStyle(color: Colors.white))));
     }
 
-    // --- RENDER YOUTUBE (DENGAN TOMBOL FALLBACK SAKTI ANTI ERROR 154) ---
+    // --- RENDER YOUTUBE ---
     if (_mode == PlayerMode.youtube && _youtubeController != null) {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Player utama (Sekarang bakal muter lagi di dalem app)
           SizedBox(
             height: 250, width: double.infinity, 
             child: YoutubePlayer(controller: _youtubeController!, aspectRatio: 16 / 9)
           ),
-          // Bar Informasi & Jalan Pintas App
+          
+          // Tombol Fallback ini TETAP kita simpan sebagai "Jaring Pengaman"
+          // In case ada video VEVO / Label besar yang kebal sama topeng iPhone
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             color: const Color(0xFF1A1A1A),
@@ -139,21 +158,13 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
                 const Icon(Icons.info_outline, color: Colors.grey, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    "Error? Hak cipta membatasi pemutaran.", 
-                    style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 11)
-                  ),
+                  child: Text("Video tidak memuat? Buka langsung di aplikasi.", style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 11)),
                 ),
                 ElevatedButton.icon(
                   onPressed: () => launchUrl(Uri.parse(widget.videoUrl), mode: LaunchMode.externalApplication),
                   icon: const Icon(LucideIcons.youtube, size: 14, color: Colors.white),
                   label: Text("Buka App", style: GoogleFonts.poppins(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red[700],
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                    minimumSize: const Size(0, 30),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))
-                  ),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red[700], padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0), minimumSize: const Size(0, 30), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
                 )
               ],
             ),
@@ -165,7 +176,6 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
     // --- RENDER WEBVIEW (IG / TIKTOK) ---
     else if (_mode == PlayerMode.webview) {
       if (kIsWeb) {
-        // AMAN DI WEB (Nggak maksain load WebView)
         return Container(
           height: 250, width: double.infinity, color: const Color(0xFF1A1A1A),
           child: Column(
@@ -185,7 +195,6 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
           ),
         );
       } else {
-        // JALAN DI HP
         return SizedBox(
           height: 450, width: double.infinity,
           child: _webViewController != null 
