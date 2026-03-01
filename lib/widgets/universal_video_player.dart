@@ -6,7 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:url_launcher/url_launcher.dart';
-import 'package:webview_flutter/webview_flutter.dart'; // <--- KEMBALI KE IMPORT NORMAL!
+import 'package:webview_flutter/webview_flutter.dart'; 
+import 'package:google_fonts/google_fonts.dart';
 
 enum PlayerMode { youtube, mp4, webview }
 
@@ -32,7 +33,6 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
   VideoPlayerController? _videoPlayerController;
   ChewieController? _chewieController;
   
-  // Tipe data dikembalikan normal
   WebViewController? _webViewController; 
 
   @override
@@ -50,7 +50,6 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
       if (ytId != null && ytId.isNotEmpty) {
         setState(() => _mode = PlayerMode.youtube);
         
-        // JURUS ANTI ERROR 152 YOUTUBE
         _youtubeController = YoutubePlayerController.fromVideoId(
           videoId: ytId,
           autoPlay: widget.autoPlay,
@@ -58,9 +57,6 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
             showControls: true, 
             showFullscreenButton: true, 
             loop: false,
-            origin: 'https://www.youtube.com',
-            // User Agent palsu biar YouTube gak rewel di HP
-            userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
           ),
         );
         return;
@@ -70,7 +66,7 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
       if (url.contains('instagram.com') || url.contains('tiktok.com')) {
         setState(() => _mode = PlayerMode.webview);
         
-        // HANYA inisialisasi controller Webview jika di HP (Bukan Web)
+        // HANYA jalanin WebView kalau di HP. Kalau di Web dilewatin biar ga Blank!
         if (!kIsWeb) {
           String finalUrl = widget.videoUrl;
           if (url.contains('instagram.com')) {
@@ -125,18 +121,51 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
       return Container(height: 250, color: Colors.black, child: const Center(child: Text("Gagal memuat video", style: TextStyle(color: Colors.white))));
     }
 
-    // --- RENDER YOUTUBE ---
+    // --- RENDER YOUTUBE (DENGAN TOMBOL FALLBACK SAKTI ANTI ERROR 154) ---
     if (_mode == PlayerMode.youtube && _youtubeController != null) {
-      return SizedBox(
-        height: 250, width: double.infinity, 
-        child: YoutubePlayer(controller: _youtubeController!, aspectRatio: 16 / 9)
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 250, width: double.infinity, 
+            child: YoutubePlayer(controller: _youtubeController!, aspectRatio: 16 / 9)
+          ),
+          // Bar Informasi & Jalan Pintas App
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: const Color(0xFF1A1A1A),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Colors.grey, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "Error? Hak cipta membatasi pemutaran.", 
+                    style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 11)
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => launchUrl(Uri.parse(widget.videoUrl), mode: LaunchMode.externalApplication),
+                  icon: const Icon(LucideIcons.youtube, size: 14, color: Colors.white),
+                  label: Text("Buka App", style: GoogleFonts.poppins(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red[700],
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                    minimumSize: const Size(0, 30),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))
+                  ),
+                )
+              ],
+            ),
+          )
+        ],
       );
     } 
     
     // --- RENDER WEBVIEW (IG / TIKTOK) ---
     else if (_mode == PlayerMode.webview) {
       if (kIsWeb) {
-        // TAMPILAN JIKA DIBUKA DI WEB BROWSER
+        // AMAN DI WEB (Nggak maksain load WebView)
         return Container(
           height: 250, width: double.infinity, color: const Color(0xFF1A1A1A),
           child: Column(
@@ -144,19 +173,19 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
             children: [
               const Icon(LucideIcons.externalLink, color: Colors.blueAccent, size: 40),
               const SizedBox(height: 16),
-              const Text("Video platform ini tidak dapat disematkan di Web.", style: TextStyle(color: Colors.white70, fontSize: 12)),
+              Text("Video ini tidak dapat disematkan di Web.", style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12)),
               const SizedBox(height: 8),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
                 onPressed: () => launchUrl(Uri.parse(widget.videoUrl), mode: LaunchMode.externalApplication), 
                 icon: const Icon(Icons.open_in_new, color: Colors.white, size: 16),
-                label: const Text("Tonton di Aplikasi Asli", style: TextStyle(color: Colors.white)),
+                label: Text("Tonton di Aplikasi Asli", style: GoogleFonts.poppins(color: Colors.white)),
               )
             ],
           ),
         );
       } else {
-        // TAMPILAN JIKA DIBUKA DI HP (MOBILE APP)
+        // JALAN DI HP
         return SizedBox(
           height: 450, width: double.infinity,
           child: _webViewController != null 

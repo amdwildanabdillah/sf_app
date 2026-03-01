@@ -60,7 +60,6 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
     }
   }
 
-  // --- POPUP LIST FANBASE ---
   void _showFanbaseSheet() {
     showModalBottomSheet(
       context: context,
@@ -92,8 +91,8 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
                     subtitle: Text(f['platform'], style: GoogleFonts.poppins(color: Colors.blueAccent, fontSize: 11)),
                     trailing: const Icon(LucideIcons.externalLink, color: Colors.grey, size: 16),
                     onTap: () {
-                      Navigator.pop(context); // Tutup pop-up
-                      _launchURL(f['url_akun']); // Buka link
+                      Navigator.pop(context); 
+                      _launchURL(f['url_akun']); 
                     },
                   );
                 })
@@ -106,61 +105,49 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // --- 1. TAMPILAN SAAT LOADING (POLOSAN BIAR TAB GAK ERROR) ---
     if (_isLoading) {
       return Scaffold(
         backgroundColor: const Color(0xFF121212),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF121212),
-          elevation: 0,
-          leading: const BackButton(color: Colors.white),
-          title: Text("Profil Penceramah", style: GoogleFonts.poppins(color: Colors.white, fontSize: 16)),
-        ),
+        appBar: AppBar(backgroundColor: const Color(0xFF121212), elevation: 0, leading: const BackButton(color: Colors.white), title: Text("Profil Penceramah", style: GoogleFonts.poppins(color: Colors.white, fontSize: 16))),
         body: const Center(child: CircularProgressIndicator(color: Color(0xFF2962FF))),
       );
     }
 
-    // --- 2. TAMPILAN SAAT DATA READY (DIBUNGKUS TAB CONTROLLER) ---
     return DefaultTabController(
       length: 2, 
       child: Scaffold(
         backgroundColor: const Color(0xFF121212),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF121212),
-          elevation: 0,
-          leading: const BackButton(color: Colors.white),
-          title: Text("Profil Penceramah", style: GoogleFonts.poppins(color: Colors.white, fontSize: 16)),
-        ),
+        appBar: AppBar(backgroundColor: const Color(0xFF121212), elevation: 0, leading: const BackButton(color: Colors.white), title: Text("Profil Penceramah", style: GoogleFonts.poppins(color: Colors.white, fontSize: 16))),
         
-        // --- 3. FOOTER (BOTTOM BAR UNTUK CONNECT) ---
+        // --- FOOTER (SOSMED AMAN DARI POLICE LINE) ---
         bottomNavigationBar: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          decoration: const BoxDecoration(
-            color: Color(0xFF1A1A1A),
-            border: Border(top: BorderSide(color: Colors.white10))
-          ),
+          decoration: const BoxDecoration(color: Color(0xFF1A1A1A), border: Border(top: BorderSide(color: Colors.white10))),
           child: SafeArea(
             child: Row(
               children: [
                 Text("Connect:", style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(width: 8),
                 
-                if (_daiData?['instagram_url'] != null) 
-                  IconButton(icon: const Icon(LucideIcons.instagram, color: Colors.white, size: 22), onPressed: () => _launchURL(_daiData!['instagram_url'])),
-                if (_daiData?['youtube_channel'] != null) 
-                  IconButton(icon: const Icon(LucideIcons.youtube, color: Colors.white, size: 22), onPressed: () => _launchURL(_daiData!['youtube_channel'])),
-                if (_daiData?['tiktok_url'] != null) 
-                  IconButton(icon: const Icon(Icons.tiktok, color: Colors.white, size: 22), onPressed: () => _launchURL(_daiData!['tiktok_url'])),
-                
-                if (_daiData?['instagram_url'] == null && _daiData?['youtube_channel'] == null && _daiData?['tiktok_url'] == null)
-                   Text(" Belum ada sosmed.", style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 11)),
-
-                const Spacer(),
+                // SOSMED BISA DI-SCROLL KE SAMPING KALAU KEPENUHAN
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        if (_daiData?['instagram_url'] != null) IconButton(icon: const Icon(LucideIcons.instagram, color: Colors.white, size: 22), onPressed: () => _launchURL(_daiData!['instagram_url'])),
+                        if (_daiData?['youtube_channel'] != null) IconButton(icon: const Icon(LucideIcons.youtube, color: Colors.white, size: 22), onPressed: () => _launchURL(_daiData!['youtube_channel'])),
+                        if (_daiData?['tiktok_url'] != null) IconButton(icon: const Icon(Icons.tiktok, color: Colors.white, size: 22), onPressed: () => _launchURL(_daiData!['tiktok_url'])),
+                        if (_daiData?['instagram_url'] == null && _daiData?['youtube_channel'] == null && _daiData?['tiktok_url'] == null)
+                           Text(" Belum ada sosmed.", style: GoogleFonts.poppins(color: Colors.grey[600], fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                ),
                 
                 TextButton.icon(
                   style: TextButton.styleFrom(foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 12)),
-                  icon: const Icon(LucideIcons.users, size: 16),
-                  label: Text("Fanbase", style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600)),
+                  icon: const Icon(LucideIcons.users, size: 16), label: Text("Fanbase", style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600)),
                   onPressed: _showFanbaseSheet,
                 )
               ],
@@ -168,10 +155,9 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
           ),
         ),
 
-        // --- 4. ISI KONTEN ---
         body: Column(
           children: [
-            // --- HEADER FIXED (TIDAK IKUT SCROLL) ---
+            // --- HEADER FIXED (NAMA AMAN DARI POLICE LINE) ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               child: Column(
@@ -181,8 +167,7 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
                     child: Column(
                       children: [
                         CircleAvatar(
-                          radius: 45,
-                          backgroundColor: Colors.grey[800],
+                          radius: 45, backgroundColor: Colors.grey[800],
                           backgroundImage: _daiData?['avatar_url'] != null ? NetworkImage(_daiData!['avatar_url']) : null,
                           child: _daiData?['avatar_url'] == null ? const Icon(LucideIcons.user, size: 40, color: Colors.white) : null,
                         ),
@@ -190,10 +175,15 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(_daiData?['name'] ?? widget.daiName, style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                            Flexible(
+                              child: Text(
+                                _daiData?['name'] ?? widget.daiName, 
+                                style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
                             if (_daiData?['is_verified'] == true) ...[
-                              const SizedBox(width: 6),
-                              const Icon(Icons.verified, color: Colors.blueAccent, size: 18),
+                              const SizedBox(width: 6), const Icon(Icons.verified, color: Colors.blueAccent, size: 18),
                             ]
                           ],
                         ),
@@ -203,30 +193,20 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
                   const SizedBox(height: 24),
                   Text("Bio / Profil Singkat", style: GoogleFonts.poppins(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
-                  Text(
-                    _daiData?['bio'] ?? 'Belum ada informasi bio.',
-                    style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 12, height: 1.5),
-                    maxLines: 3, overflow: TextOverflow.ellipsis,
-                  ),
+                  Text(_daiData?['bio'] ?? 'Belum ada informasi bio.', style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 12, height: 1.5), maxLines: 3, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 20),
                 ],
               ),
             ),
 
-            // --- TAB BAR (FIXED) ---
             TabBar(
               indicatorColor: const Color(0xFF2962FF), labelColor: const Color(0xFF2962FF), unselectedLabelColor: Colors.grey,
-              labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13),
-              tabs: const [Tab(text: "KAJIAN"), Tab(text: "SANAD")],
+              labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 13), tabs: const [Tab(text: "KAJIAN"), Tab(text: "SANAD")],
             ),
             
-            // --- ISI TAB VIEW (YANG BISA DI-SCROLL) ---
             Expanded(
               child: TabBarView(
-                children: [
-                  _buildKajianTab(),
-                  _buildSanadTab(),
-                ],
+                children: [_buildKajianTab(), _buildSanadTab()],
               ),
             ),
           ],
@@ -235,44 +215,20 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
     );
   }
 
-  // ==========================================
-  // TAB 1: KAJIAN 
-  // ==========================================
   Widget _buildKajianTab() {
     if (_kajianList.isEmpty) return Center(child: Text("Belum ada video kajian.", style: GoogleFonts.poppins(color: Colors.grey)));
-    
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _kajianList.length,
+      padding: const EdgeInsets.all(16), itemCount: _kajianList.length,
       itemBuilder: (context, index) {
         final video = _kajianList[index];
         return GestureDetector(
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => VideoDetailScreen(videoData: {
-            ...video, 'dai_name': _daiData?['name'], 'dai_avatar': _daiData?['avatar_url'], 'is_verified': _daiData?['is_verified']
-          }))),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => VideoDetailScreen(videoData: {...video, 'dai_name': _daiData?['name'], 'dai_avatar': _daiData?['avatar_url'], 'is_verified': _daiData?['is_verified']}))),
           child: Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(12)),
+            margin: const EdgeInsets.only(bottom: 16), decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(12)),
             child: Row(
               children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)),
-                  child: Image.network(video['thumbnail_url'] ?? '', width: 120, height: 90, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(width: 120, height: 90, color: Colors.grey[800])),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(video['title'] ?? 'Tanpa Judul', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 8),
-                        Text(video['category'] ?? 'Umum', style: GoogleFonts.poppins(color: const Color(0xFF2962FF), fontSize: 10, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
-                )
-              ],
+                ClipRRect(borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12)), child: Image.network(video['thumbnail_url'] ?? '', width: 120, height: 90, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(width: 120, height: 90, color: Colors.grey[800]))),
+                Expanded(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(video['title'] ?? 'Tanpa Judul', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis), const SizedBox(height: 8), Text(video['category'] ?? 'Umum', style: GoogleFonts.poppins(color: const Color(0xFF2962FF), fontSize: 10, fontWeight: FontWeight.w600))])))]
             ),
           ),
         );
@@ -280,120 +236,39 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
     );
   }
 
-  // ==========================================
-  // TAB 2: VISUALISASI SANAD (MASTER-DETAIL TREE)
-  // ==========================================
   Widget _buildSanadTab() {
-    if (_sanadList.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(LucideIcons.gitMerge, size: 50, color: Colors.grey[800]), const SizedBox(height: 16),
-            Text("Data sanad belum ditambahkan.", style: GoogleFonts.poppins(color: Colors.grey)),
-          ],
-        )
-      );
-    }
-
+    if (_sanadList.isEmpty) return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(LucideIcons.gitMerge, size: 50, color: Colors.grey[800]), const SizedBox(height: 16), Text("Data sanad belum ditambahkan.", style: GoogleFonts.poppins(color: Colors.grey))]));
     return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: _sanadList.length,
+      padding: const EdgeInsets.all(20), itemCount: _sanadList.length,
       itemBuilder: (context, index) {
-        final item = _sanadList[index];
-        final gurus = item['sanad_gurus'] as List<dynamic>? ?? []; 
-        final isLast = index == _sanadList.length - 1;
-
-        IconData catIcon = LucideIcons.bookOpen;
-        String cat = (item['kategori'] ?? '').toString().toLowerCase();
-        if (cat.contains('pesantren') || cat.contains('pondok')) catIcon = LucideIcons.building;
-        else if (cat.contains('universitas') || cat.contains('kampus')) catIcon = LucideIcons.graduationCap;
-        else if (cat.contains('keluarga') || cat.contains('orang tua')) catIcon = LucideIcons.users;
+        final item = _sanadList[index]; final gurus = item['sanad_gurus'] as List<dynamic>? ?? []; final isLast = index == _sanadList.length - 1;
+        IconData catIcon = LucideIcons.bookOpen; String cat = (item['kategori'] ?? '').toString().toLowerCase();
+        if (cat.contains('pesantren') || cat.contains('pondok')) catIcon = LucideIcons.building; else if (cat.contains('universitas') || cat.contains('kampus')) catIcon = LucideIcons.graduationCap; else if (cat.contains('keluarga') || cat.contains('orang tua')) catIcon = LucideIcons.users;
 
         return IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // GARIS WAKTU (TIMELINE)
-              Column(
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 8), padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: const Color(0xFF2962FF).withOpacity(0.15), shape: BoxShape.circle, border: Border.all(color: const Color(0xFF2962FF), width: 2)),
-                    child: Icon(catIcon, color: const Color(0xFF2962FF), size: 16),
-                  ),
-                  if (!isLast) Expanded(child: Container(width: 2, color: const Color(0xFF2962FF).withOpacity(0.3), margin: const EdgeInsets.symmetric(vertical: 4))),
-                ],
-              ),
+              Column(children: [Container(margin: const EdgeInsets.only(top: 8), padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFF2962FF).withOpacity(0.15), shape: BoxShape.circle, border: Border.all(color: const Color(0xFF2962FF), width: 2)), child: Icon(catIcon, color: const Color(0xFF2962FF), size: 16)), if (!isLast) Expanded(child: Container(width: 2, color: const Color(0xFF2962FF).withOpacity(0.3), margin: const EdgeInsets.symmetric(vertical: 4)))]),
               const SizedBox(width: 16),
-
-              // KOTAK MASTER-DETAIL
               Expanded(
                 child: Container(
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
+                  margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
                   child: Theme(
                     data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                     child: ExpansionTile(
-                      tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      childrenPadding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-                      iconColor: const Color(0xFF2962FF), collapsedIconColor: Colors.grey,
-                      
+                      tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), childrenPadding: const EdgeInsets.only(left: 16, right: 16, bottom: 16), iconColor: const Color(0xFF2962FF), collapsedIconColor: Colors.grey,
                       title: Text(item['nama_instansi_guru'] ?? '-', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                      subtitle: item['periode'] != null && item['periode'].toString().isNotEmpty
-                          ? Text(item['periode'], style: GoogleFonts.poppins(color: const Color(0xFF2962FF), fontSize: 11, fontWeight: FontWeight.w600)) : null,
-                          
+                      subtitle: item['periode'] != null && item['periode'].toString().isNotEmpty ? Text(item['periode'], style: GoogleFonts.poppins(color: const Color(0xFF2962FF), fontSize: 11, fontWeight: FontWeight.w600)) : null,
                       children: [
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Divider(color: Colors.white10), const SizedBox(height: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(6)),
-                                child: Text("Jalur: ${item['kategori'] ?? '-'}", style: GoogleFonts.poppins(color: Colors.grey[300], fontSize: 10, fontWeight: FontWeight.bold)),
-                              ),
-                              const SizedBox(height: 16),
-
-                              if (gurus.isEmpty) 
-                                Text("Belum ada rincian guru dicatat.", style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 12, fontStyle: FontStyle.italic))
-                              else ...[
-                                Text("Masyayikh / Guru Pembimbing:", style: GoogleFonts.poppins(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-                                const SizedBox(height: 8),
-                                ...gurus.map((g) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Padding(padding: EdgeInsets.only(top: 4), child: Icon(LucideIcons.userCheck, size: 14, color: Colors.blueAccent)),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(g['nama_guru'], style: GoogleFonts.poppins(color: Colors.grey[200], fontSize: 13, fontWeight: FontWeight.w500)),
-                                            if (g['spesialisasi_kitab'] != null) Text("Kitab/Ilmu: ${g['spesialisasi_kitab']}", style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 11)),
-                                          ],
-                                        ),
-                                      )
-                                    ],
-                                  ),
-                                ))
-                              ],
-
-                              if (item['website_url'] != null && item['website_url'].toString().isNotEmpty) ...[
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: () => _launchURL(item['website_url']),
-                                    icon: const Icon(LucideIcons.externalLink, size: 14, color: Colors.blueAccent),
-                                    label: Text("Kunjungi Web Tabayyun", style: GoogleFonts.poppins(fontSize: 12, color: Colors.blueAccent)),
-                                    style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.blueAccent), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                                  ),
-                                ),
-                              ]
+                              const Divider(color: Colors.white10), const SizedBox(height: 8), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(6)), child: Text("Jalur: ${item['kategori'] ?? '-'}", style: GoogleFonts.poppins(color: Colors.grey[300], fontSize: 10, fontWeight: FontWeight.bold))), const SizedBox(height: 16),
+                              if (gurus.isEmpty) Text("Belum ada rincian guru dicatat.", style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 12, fontStyle: FontStyle.italic)) else ...[Text("Masyayikh / Guru Pembimbing:", style: GoogleFonts.poppins(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)), const SizedBox(height: 8), ...gurus.map((g) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [const Padding(padding: EdgeInsets.only(top: 4), child: Icon(LucideIcons.userCheck, size: 14, color: Colors.blueAccent)), const SizedBox(width: 8), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(g['nama_guru'], style: GoogleFonts.poppins(color: Colors.grey[200], fontSize: 13, fontWeight: FontWeight.w500)), if (g['spesialisasi_kitab'] != null) Text("Kitab/Ilmu: ${g['spesialisasi_kitab']}", style: GoogleFonts.poppins(color: Colors.grey[500], fontSize: 11))]))])))],
+                              if (item['website_url'] != null && item['website_url'].toString().isNotEmpty) ...[const SizedBox(height: 16), SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () => _launchURL(item['website_url']), icon: const Icon(LucideIcons.externalLink, size: 14, color: Colors.blueAccent), label: Text("Kunjungi Web Tabayyun", style: GoogleFonts.poppins(fontSize: 12, color: Colors.blueAccent)), style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.blueAccent), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)))))]
                             ],
                           ),
                         ),
