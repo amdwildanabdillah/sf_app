@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:google_fonts/google_fonts.dart'; 
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // Buat load .env
+import 'package:google_fonts/google_fonts.dart'; // UI Font
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // load .env
 
 // Import halaman-halaman
 import 'package:sanadflow_mobile/screens/login_screen.dart';
