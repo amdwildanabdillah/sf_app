@@ -71,21 +71,21 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
+      // 🔥 SOLUSI ANTI KLIK NYASAR KE YOUTUBE: Pindah Tombol Back ke AppBar 🔥
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text("Tonton Kajian", style: GoogleFonts.poppins(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            Stack(
-              children: [
-                UniversalVideoPlayer(videoUrl: videoUrl, autoPlay: true), 
-                Positioned(
-                  top: 10, left: 10,
-                  child: CircleAvatar(
-                    backgroundColor: Colors.black54,
-                    child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
-                  ),
-                ),
-              ],
-            ),
+            // Video Player sekarang berdiri sendiri, nggak ditumpuk pakai Stack
+            UniversalVideoPlayer(videoUrl: videoUrl, autoPlay: true), 
 
             Expanded(
               child: SingleChildScrollView(
@@ -93,7 +93,6 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 🔥 FIX POLICE LINE CLIPPER DI SINI 🔥
                     Row(
                       children: [
                         Container(
@@ -103,7 +102,7 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                         ),
                         const SizedBox(width: 12),
                         if (sourceName != null && sourceName.toString().isNotEmpty) 
-                          Expanded( // <--- Ini Kunci Anti Nabrak Layar!
+                          Expanded(
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(6)),
@@ -111,7 +110,7 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                                 children: [
                                   Icon(LucideIcons.userCheck, size: 12, color: Colors.grey[400]),
                                   const SizedBox(width: 4),
-                                  Expanded( // <--- Potong teks kepanjangan jadi titik-titik (...)
+                                  Expanded(
                                     child: Text(
                                       "Clipper: $sourceName", 
                                       style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 10),
@@ -128,7 +127,6 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                     Text(title, style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 24),
                     
-                    // FIX POLICE LINE TOMBOL ACTION
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
