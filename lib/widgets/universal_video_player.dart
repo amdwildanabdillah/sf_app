@@ -45,37 +45,23 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
     try {
       final url = widget.videoUrl.toLowerCase();
 
-      // --- 1. DETEKSI YOUTUBE ---
+      // --- 1. DETEKSI YOUTUBE (VERSI BERSIH DARI REPO GITHUB) ---
       String? ytId = YoutubePlayerController.convertUrlToId(widget.videoUrl);
       if (ytId != null && ytId.isNotEmpty) {
         setState(() => _mode = PlayerMode.youtube);
         
-        // 🔥 LOGIC SAKTI: PISAHKAN PARAMETER WEB & HP SECARA EKSPLISIT 🔥
-        if (kIsWeb) {
-          // MESIN WEB: Polosan biar gak White Screen
-          _youtubeController = YoutubePlayerController.fromVideoId(
-            videoId: ytId,
-            autoPlay: widget.autoPlay,
-            params: const YoutubePlayerParams(
-              showControls: true, 
-              showFullscreenButton: true, 
-              loop: false,
-            ),
-          );
-        } else {
-          // MESIN HP: Topeng iPhone murni (Mengembalikan kekuatan app yang muter di dalem!)
-          _youtubeController = YoutubePlayerController.fromVideoId(
-            videoId: ytId,
-            autoPlay: widget.autoPlay,
-            params: const YoutubePlayerParams(
-              showControls: true, 
-              showFullscreenButton: true, 
-              loop: false,
-              origin: 'https://www.youtube.com',
-              userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-            ),
-          );
-        }
+        // Langsung hajar, gak perlu dipisah kIsWeb atau pake UserAgent iPhone lagi!
+        // Repo bule-nya udah nge-handle ini otomatis di belakang layar.
+        _youtubeController = YoutubePlayerController.fromVideoId(
+          videoId: ytId,
+          autoPlay: widget.autoPlay,
+          params: const YoutubePlayerParams(
+            showControls: true, 
+            showFullscreenButton: true, 
+            loop: false,
+            origin: 'https://www.youtube.com', // Cukup sisakan origin ini aja
+          ),
+        );
         return;
       }
 
@@ -142,14 +128,12 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Player utama (Sekarang bakal muter lagi di dalem app)
           SizedBox(
             height: 250, width: double.infinity, 
             child: YoutubePlayer(controller: _youtubeController!, aspectRatio: 16 / 9)
           ),
           
-          // Tombol Fallback ini TETAP kita simpan sebagai "Jaring Pengaman"
-          // In case ada video VEVO / Label besar yang kebal sama topeng iPhone
+          // Tombol Fallback TETAP kita pertahankan sebagai jaring pengaman (Good UX)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             color: const Color(0xFF1A1A1A),
@@ -158,7 +142,7 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
                 const Icon(Icons.info_outline, color: Colors.grey, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text("Video tidak memuat? Buka langsung di aplikasi.", style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 11)),
+                  child: Text("Video blank/error? Buka langsung di aplikasi.", style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 11)),
                 ),
                 ElevatedButton.icon(
                   onPressed: () => launchUrl(Uri.parse(widget.videoUrl), mode: LaunchMode.externalApplication),
