@@ -4,7 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart'; 
 import 'package:sanadflow_mobile/screens/dai_profile_screen.dart'; 
-import 'package:sanadflow_mobile/widgets/universal_video_player.dart'; // <--- PANGGIL OTAK PINTAR
+import 'package:sanadflow_mobile/widgets/universal_video_player.dart'; 
 
 class VideoDetailScreen extends StatefulWidget {
   final Map<String, dynamic> videoData;
@@ -74,18 +74,9 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // --- PLAYER SAKTI ---
             Stack(
               children: [
-                  SafeArea(
-                    child: AspectRatio(
-                      aspectRatio: 16 / 9,
-                      child: UniversalVideoPlayer(
-                        videoUrl: videoUrl,
-                        autoPlay: true, // <--- INI KUNCINYA
-                      ),
-                  ),
-                ),
+                UniversalVideoPlayer(videoUrl: videoUrl, autoPlay: true), 
                 Positioned(
                   top: 10, left: 10,
                   child: CircleAvatar(
@@ -102,6 +93,7 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // 🔥 FIX POLICE LINE CLIPPER DI SINI 🔥
                     Row(
                       children: [
                         Container(
@@ -109,34 +101,48 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                           decoration: BoxDecoration(color: const Color(0xFF2962FF).withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
                           child: Text(category.toUpperCase(), style: GoogleFonts.poppins(color: const Color(0xFF2962FF), fontSize: 10, fontWeight: FontWeight.bold)),
                         ),
-                        const Spacer(),
+                        const SizedBox(width: 12),
                         if (sourceName != null && sourceName.toString().isNotEmpty) 
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(6)),
-                            child: Row(
-                              children: [
-                                Icon(LucideIcons.userCheck, size: 12, color: Colors.grey[400]),
-                                const SizedBox(width: 4),
-                                Text("Clipper: $sourceName", style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 10)),
-                              ],
-                            )
+                          Expanded( // <--- Ini Kunci Anti Nabrak Layar!
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(6)),
+                              child: Row(
+                                children: [
+                                  Icon(LucideIcons.userCheck, size: 12, color: Colors.grey[400]),
+                                  const SizedBox(width: 4),
+                                  Expanded( // <--- Potong teks kepanjangan jadi titik-titik (...)
+                                    child: Text(
+                                      "Clipper: $sourceName", 
+                                      style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 10),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            ),
                           ),
                       ],
                     ),
                     const SizedBox(height: 10),
                     Text(title, style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _actionButton(LucideIcons.thumbsUp, "Like", () {}), 
-                        _actionButton(LucideIcons.share2, "Bagikan", _shareVideo), 
-                        _actionButton(_isSaved ? LucideIcons.bookmarkMinus : LucideIcons.bookmarkPlus, _isSaved ? "Disimpan" : "Simpan", _toggleSave, isActive: _isSaved),
-                        _actionButton(LucideIcons.flag, "Lapor", () {}), 
-                      ],
+                    
+                    // FIX POLICE LINE TOMBOL ACTION
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _actionButton(LucideIcons.thumbsUp, "Like", () {}), const SizedBox(width: 30),
+                          _actionButton(LucideIcons.share2, "Bagikan", _shareVideo), const SizedBox(width: 30),
+                          _actionButton(_isSaved ? LucideIcons.bookmarkMinus : LucideIcons.bookmarkPlus, _isSaved ? "Disimpan" : "Simpan", _toggleSave, isActive: _isSaved), const SizedBox(width: 30),
+                          _actionButton(LucideIcons.flag, "Lapor", () {}), 
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 24), const Divider(color: Colors.white10), const SizedBox(height: 24),
+                    
                     GestureDetector(
                       onTap: () {
                         if (daiId != null) {
