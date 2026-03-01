@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:google_fonts/google_fonts.dart'; // Jangan lupa package ini biar fontnya cakep
+import 'package:google_fonts/google_fonts.dart'; 
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Buat load .env
 
 // Import halaman-halaman
 import 'package:sanadflow_mobile/screens/login_screen.dart';
@@ -9,12 +10,17 @@ import 'package:sanadflow_mobile/screens/home_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Konfigurasi Supabase (Sesuai punya kamu)
+  // --- 1. BUKA BRANKAS .ENV ---
+  // Pastikan file .env dibaca sebelum Supabase diinisialisasi
+  await dotenv.load(fileName: ".env");
+
+  // --- 2. KONFIGURASI SUPABASE (VERSI AMAN) ---
+  // Tarik data URL dan Anon Key dari dalam brankas .env
   await Supabase.initialize(
-    url: 'https://jpaagyecfxhzjpzstgsi.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwYWFneWVjZnhoempwenN0Z3NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjgxNDQsImV4cCI6MjA4NTcwNDE0NH0.Vh9lDS64jmb5ZMnyflpl6HRe6XxNfnA6JtJTwIUM-sI',
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
- 
+  
   runApp(const SanadFlowApp());
 }
 

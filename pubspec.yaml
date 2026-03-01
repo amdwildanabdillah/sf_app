@@ -41,6 +41,7 @@ dependencies:
   google_sign_in: ^6.2.1
   image_picker: ^1.2.1
   file_picker: ^10.3.10
+  flutter_dotenv: ^6.0.0
   
 
 dev_dependencies:
@@ -55,3 +56,4 @@ flutter:
   # --- ASSETS ---
   assets:
     - assets/images/
+    - .env
