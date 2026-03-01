@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
-import 'package:webview_flutter/webview_flutter.dart'; 
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:flutter/foundation.dart' show kIsWeb; // <--- KUNCI ANTI BLANK WEB
-import 'package:url_launcher/url_launcher.dart'; // <--- FALLBACK UNTUK WEB
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart'; // <--- KEMBALI KE IMPORT NORMAL!
 
 enum PlayerMode { youtube, mp4, webview }
 
@@ -31,7 +31,9 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
   YoutubePlayerController? _youtubeController;
   VideoPlayerController? _videoPlayerController;
   ChewieController? _chewieController;
-  late final WebViewController _webViewController;
+  
+  // Tipe data dikembalikan normal
+  WebViewController? _webViewController; 
 
   @override
   void initState() {
@@ -47,21 +49,28 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
       String? ytId = YoutubePlayerController.convertUrlToId(widget.videoUrl);
       if (ytId != null && ytId.isNotEmpty) {
         setState(() => _mode = PlayerMode.youtube);
+        
+        // JURUS ANTI ERROR 152 YOUTUBE
         _youtubeController = YoutubePlayerController.fromVideoId(
           videoId: ytId,
           autoPlay: widget.autoPlay,
           params: const YoutubePlayerParams(
-            showControls: true, showFullscreenButton: true, loop: false, origin: 'https://www.youtube.com'
+            showControls: true, 
+            showFullscreenButton: true, 
+            loop: false,
+            origin: 'https://www.youtube.com',
+            // User Agent palsu biar YouTube gak rewel di HP
+            userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
           ),
         );
         return;
       }
 
-      // --- 2. DETEKSI INSTAGRAM / TIKTOK (WEBVIEW) ---
+      // --- 2. DETEKSI INSTAGRAM / TIKTOK ---
       if (url.contains('instagram.com') || url.contains('tiktok.com')) {
         setState(() => _mode = PlayerMode.webview);
         
-        // HANYA init WebView jika BUKAN di Web, biar tidak crash
+        // HANYA inisialisasi controller Webview jika di HP (Bukan Web)
         if (!kIsWeb) {
           String finalUrl = widget.videoUrl;
           if (url.contains('instagram.com')) {
@@ -116,12 +125,18 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
       return Container(height: 250, color: Colors.black, child: const Center(child: Text("Gagal memuat video", style: TextStyle(color: Colors.white))));
     }
 
+    // --- RENDER YOUTUBE ---
     if (_mode == PlayerMode.youtube && _youtubeController != null) {
-      return SizedBox(height: 250, width: double.infinity, child: YoutubePlayer(controller: _youtubeController!, aspectRatio: 16 / 9));
+      return SizedBox(
+        height: 250, width: double.infinity, 
+        child: YoutubePlayer(controller: _youtubeController!, aspectRatio: 16 / 9)
+      );
     } 
+    
+    // --- RENDER WEBVIEW (IG / TIKTOK) ---
     else if (_mode == PlayerMode.webview) {
-      // --- LOGIC SAKTI ANTI BLANK DI WEB ---
       if (kIsWeb) {
+        // TAMPILAN JIKA DIBUKA DI WEB BROWSER
         return Container(
           height: 250, width: double.infinity, color: const Color(0xFF1A1A1A),
           child: Column(
@@ -135,18 +150,23 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
                 onPressed: () => launchUrl(Uri.parse(widget.videoUrl), mode: LaunchMode.externalApplication), 
                 icon: const Icon(Icons.open_in_new, color: Colors.white, size: 16),
-                label: const Text("Tonton di Platform Asli", style: TextStyle(color: Colors.white)),
+                label: const Text("Tonton di Aplikasi Asli", style: TextStyle(color: Colors.white)),
               )
             ],
           ),
         );
       } else {
+        // TAMPILAN JIKA DIBUKA DI HP (MOBILE APP)
         return SizedBox(
           height: 450, width: double.infinity,
-          child: WebViewWidget(controller: _webViewController),
+          child: _webViewController != null 
+            ? WebViewWidget(controller: _webViewController!) 
+            : const Center(child: CircularProgressIndicator(color: Color(0xFF2962FF))),
         );
       }
     } 
+    
+    // --- RENDER MP4 ---
     else if (_mode == PlayerMode.mp4 && _chewieController != null && _chewieController!.videoPlayerController.value.isInitialized) {
       return AspectRatio(aspectRatio: _videoPlayerController!.value.aspectRatio, child: Chewie(controller: _chewieController!));
     } 
