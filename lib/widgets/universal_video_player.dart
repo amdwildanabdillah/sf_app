@@ -56,7 +56,6 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
           setState(() => _mode = PlayerMode.youtube);
           _youtubeController = YoutubePlayerController.fromVideoId(
             videoId: ytId, autoPlay: widget.autoPlay,
-            // 🔥 Tambahan playsInline: true biar gak manja minta fullscreen di Web
             params: const YoutubePlayerParams(showControls: true, showFullscreenButton: true, playsInline: true),
           );
           return;
@@ -78,7 +77,8 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
             
             _chewieController = ChewieController(
               videoPlayerController: _videoPlayerController!,
-              aspectRatio: 16 / 9, // 🔥 Paksa rasio standar biar gak melebar kemana-mana
+              // 🔥 FIX GEPENG: Kembalikan ke rasio asli videonya!
+              aspectRatio: _videoPlayerController!.value.aspectRatio,
               autoPlay: widget.autoPlay, looping: false,
               materialProgressColors: ChewieProgressColors(playedColor: const Color(0xFF2962FF), handleColor: Colors.white, backgroundColor: Colors.grey.shade800),
             );
@@ -89,7 +89,6 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
             setState(() => _mode = PlayerMode.youtube);
             _youtubeController = YoutubePlayerController.fromVideoId(
               videoId: ytId, autoPlay: widget.autoPlay,
-              // 🔥 Tambahan playsInline: true buat Fallback App
               params: const YoutubePlayerParams(showControls: true, showFullscreenButton: true, playsInline: true),
             );
             return;
@@ -128,7 +127,8 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
       await _videoPlayerController!.initialize();
       _chewieController = ChewieController(
         videoPlayerController: _videoPlayerController!,
-        aspectRatio: 16 / 9, // 🔥 Paksa rasio standar
+        // 🔥 FIX GEPENG: Kembalikan ke rasio asli videonya!
+        aspectRatio: _videoPlayerController!.value.aspectRatio,
         autoPlay: widget.autoPlay, looping: false,
         materialProgressColors: ChewieProgressColors(playedColor: const Color(0xFF2962FF), handleColor: Colors.white, backgroundColor: Colors.grey.shade800),
       );
@@ -196,13 +196,16 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
       }
     } 
     
-    // --- RENDER MP4 (YANG DARI HASIL SEDOTAN YOUTUBE JUGA MUTER DI SINI!) ---
+    // --- RENDER MP4 ---
     else if (_mode == PlayerMode.mp4 && _chewieController != null && _chewieController!.videoPlayerController.value.isInitialized) {
-      // 🔥 KITA KANDANGIN DI SIZEDBOX BIAR GAK BABLAS FULLSCREEN 🔥
-      return SizedBox(
-        height: 250, 
-        width: double.infinity,
-        child: Chewie(controller: _chewieController!),
+      // 🔥 KANDANG NYA KITA SET KE ASPECT RATIO TV (16:9) 🔥
+      // Tapi karena rasio video di dalemnya udah asli, gak bakal gepeng!
+      return AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Container(
+          color: Colors.black, // Kasih black bar kl videonya vertikal
+          child: Chewie(controller: _chewieController!),
+        ),
       );
     } 
     
