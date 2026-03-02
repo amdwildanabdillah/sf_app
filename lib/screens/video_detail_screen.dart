@@ -71,7 +71,6 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
-      // 🔥 SOLUSI ANTI KLIK NYASAR KE YOUTUBE: Pindah Tombol Back ke AppBar 🔥
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
@@ -84,7 +83,6 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Video Player sekarang berdiri sendiri, nggak ditumpuk pakai Stack
             UniversalVideoPlayer(videoUrl: videoUrl, autoPlay: true), 
 
             Expanded(
@@ -161,13 +159,27 @@ class _VideoDetailScreenState extends State<VideoDetailScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  children: [
-                                    Flexible(child: Text(author, style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                                    if (isVerified) ...[const SizedBox(width: 4), const Icon(Icons.verified, color: Colors.blueAccent, size: 16)],
-                                  ],
+                                // 🔥 INI DIA JURUS SAKTINYA (RICHTEXT + WIDGETSPAN) 🔥
+                                RichText(
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  text: TextSpan(
+                                    text: author,
+                                    style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16),
+                                    children: [
+                                      if (isVerified)
+                                        const WidgetSpan(
+                                          alignment: PlaceholderAlignment.middle,
+                                          child: Padding(
+                                            padding: EdgeInsets.only(left: 4.0),
+                                            child: Icon(Icons.verified, color: Colors.blueAccent, size: 16),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 ),
-                                Text("Klik untuk lihat profil", style: GoogleFonts.poppins(color: Colors.grey, fontSize: 12)),
+                                const SizedBox(height: 2), // Kasih jarak dikit biar manis
+                                Text("Klik untuk lihat profil & sanad", style: GoogleFonts.poppins(color: Colors.grey, fontSize: 12)),
                               ],
                             ),
                           ),

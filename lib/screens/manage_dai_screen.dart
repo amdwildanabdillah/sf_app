@@ -108,7 +108,7 @@ class _ManageDaiScreenState extends State<ManageDaiScreen> {
   void _addSanadForm() => setState(() => _sanadForms.add({
     'instansiController': TextEditingController(), 'kategori': 'Pesantren',
     'periodeController': TextEditingController(), 'websiteController': TextEditingController(),
-    'gurus': <Map<String, dynamic>>[] // Nested List buat Guru
+    'gurus': <Map<String, dynamic>>[] 
   }));
   void _removeSanadForm(int index) => setState(() => _sanadForms.removeAt(index));
 
@@ -148,7 +148,6 @@ class _ManageDaiScreenState extends State<ManageDaiScreen> {
       if (_isEditMode && _selectedDaiId != null) {
         await supabase.from('dais').update(daiPayload).eq('id', _selectedDaiId!);
         targetDaiId = _selectedDaiId!;
-        // SAPU BERSIH: Hapus data lama, biar gak duplikat (sanad_gurus otomatis kehapus krn CASCADE)
         await supabase.from('dai_fanbases').delete().eq('dai_id', targetDaiId);
         await supabase.from('dai_sanads').delete().eq('dai_id', targetDaiId);
       } else {
@@ -167,10 +166,9 @@ class _ManageDaiScreenState extends State<ManageDaiScreen> {
         if (fanbasePayload.isNotEmpty) await supabase.from('dai_fanbases').insert(fanbasePayload);
       }
 
-      // 2. Simpan Sanad & Gurunya (Harus loop krn butuh ID Sanad)
+      // 2. Simpan Sanad & Gurunya
       for (var s in _sanadForms) {
         if (s['instansiController'].text.isNotEmpty) {
-          // Insert Master Sanad
           final sanadRes = await supabase.from('dai_sanads').insert({
             'dai_id': targetDaiId, 'nama_instansi_guru': s['instansiController'].text,
             'kategori': s['kategori'], 'periode': s['periodeController'].text.isNotEmpty ? s['periodeController'].text : null,
@@ -179,7 +177,6 @@ class _ManageDaiScreenState extends State<ManageDaiScreen> {
           
           final sanadId = sanadRes['id'];
 
-          // Insert Detail Guru
           List gurus = s['gurus'];
           List<Map<String, dynamic>> guruPayload = [];
           for (var g in gurus) {
@@ -259,17 +256,14 @@ class _ManageDaiScreenState extends State<ManageDaiScreen> {
               const SizedBox(height: 30), const Divider(color: Colors.white24), const SizedBox(height: 20),
 
               // --- 2. AKUN FANBASE ---
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text("2. Akun Fanbase / Clipper", style: GoogleFonts.poppins(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 16)),
-                  IconButton(onPressed: _addFanbaseForm, icon: const Icon(Icons.add_circle, color: Colors.blueAccent))
-                ],
-              ),
+              // 🔥 Header Tanpa Tombol Plus 🔥
+              Text("2. Akun Fanbase / Clipper", style: GoogleFonts.poppins(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 16),
+              
               ..._fanbaseForms.asMap().entries.map((entry) {
                 int index = entry.key; Map<String, dynamic> f = entry.value;
                 return Container(
-                  margin: const EdgeInsets.only(bottom: 12, top: 8), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
+                  margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
                   child: Column(
                     children: [
                       Row(
@@ -283,21 +277,28 @@ class _ManageDaiScreenState extends State<ManageDaiScreen> {
                   ),
                 );
               }),
+              
+              // 🔥 TOMBOL PLUS PINDAH KE BAWAH SINI 🔥
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _addFanbaseForm, icon: const Icon(Icons.add, color: Colors.blueAccent, size: 18), label: Text("Tambah Akun Fanbase", style: GoogleFonts.poppins(color: Colors.blueAccent, fontSize: 13)),
+                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), side: BorderSide(color: Colors.blueAccent.withOpacity(0.5)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                ),
+              ),
+
               const SizedBox(height: 30), const Divider(color: Colors.white24), const SizedBox(height: 20),
 
               // --- 3. SANAD TREE ---
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(child: Text("3. Otoritas Keilmuan (Sanad)", style: GoogleFonts.poppins(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 16))),
-                  IconButton(onPressed: _addSanadForm, icon: const Icon(Icons.add_circle, color: Colors.blueAccent))
-                ],
-              ),
+              // 🔥 Header Tanpa Tombol Plus 🔥
+              Text("3. Otoritas Keilmuan (Sanad)", style: GoogleFonts.poppins(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 16),
+              
               ..._sanadForms.asMap().entries.map((entry) {
                 int sIndex = entry.key; Map<String, dynamic> s = entry.value;
                 List gurus = s['gurus'];
                 return Container(
-                  margin: const EdgeInsets.only(bottom: 20, top: 12), padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF2962FF).withOpacity(0.5))),
+                  margin: const EdgeInsets.only(bottom: 20), padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF2962FF).withOpacity(0.5))),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -317,16 +318,15 @@ class _ManageDaiScreenState extends State<ManageDaiScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [Text("Daftar Guru/Kiai di sini:", style: GoogleFonts.poppins(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)), TextButton.icon(onPressed: () => _addGuruForm(sIndex), icon: const Icon(Icons.add, size: 14, color: Colors.greenAccent), label: Text("Guru", style: GoogleFonts.poppins(color: Colors.greenAccent, fontSize: 12)))],
-                            ),
+                            Text("Daftar Guru/Kiai di sini:", style: GoogleFonts.poppins(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
                             if (gurus.isEmpty) Text("Belum ada guru dicatat.", style: TextStyle(color: Colors.grey[600], fontSize: 11)),
                             ...gurus.asMap().entries.map((gEntry) {
                               int gIndex = gEntry.key; Map<String, dynamic> g = gEntry.value;
                               return Padding(
-                                padding: const EdgeInsets.only(top: 8),
+                                padding: const EdgeInsets.only(bottom: 12), // Kasih jarak antar guru
                                 child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Expanded(
                                       child: Column(
@@ -336,11 +336,22 @@ class _ManageDaiScreenState extends State<ManageDaiScreen> {
                                         ],
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
                                     IconButton(onPressed: () => _removeGuruForm(sIndex, gIndex), icon: const Icon(Icons.close, color: Colors.redAccent))
                                   ],
                                 ),
                               );
-                            })
+                            }),
+                            
+                            // 🔥 Tombol Tambah Guru Pindah Ke Bawah List Guru 🔥
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: TextButton.icon(
+                                onPressed: () => _addGuruForm(sIndex), icon: const Icon(Icons.add, size: 16, color: Colors.greenAccent), label: Text("Tambah Guru Baru", style: GoogleFonts.poppins(color: Colors.greenAccent, fontSize: 12)),
+                                style: TextButton.styleFrom(backgroundColor: Colors.greenAccent.withOpacity(0.1), padding: const EdgeInsets.symmetric(vertical: 8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
+                              ),
+                            )
                           ],
                         ),
                       )
@@ -348,6 +359,15 @@ class _ManageDaiScreenState extends State<ManageDaiScreen> {
                   ),
                 );
               }),
+
+              // 🔥 TOMBOL PLUS SANAD PINDAH KE BAWAH SINI 🔥
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _addSanadForm, icon: const Icon(Icons.add_circle_outline, color: Colors.blueAccent), label: Text("Tambah Jalur Sanad Baru", style: GoogleFonts.poppins(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: const BorderSide(color: Colors.blueAccent, width: 1.5), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                ),
+              ),
               
               const SizedBox(height: 30),
               SizedBox(

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sanadflow_mobile/screens/video_detail_screen.dart';
+import 'package:sanadflow_mobile/screens/dai_profile_screen.dart'; // Wajib di-import!
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -14,15 +15,19 @@ class ExploreScreen extends StatefulWidget {
 
 class _ExploreScreenState extends State<ExploreScreen> {
   final TextEditingController _searchController = TextEditingController();
-  List<Map<String, dynamic>> _searchResults = [];
+  
+  // Pisahkan hasil pencarian Da'i dan Kajian
+  List<Map<String, dynamic>> _daiResults = [];
+  List<Map<String, dynamic>> _kajianResults = [];
+  
   bool _isLoading = false;
   bool _isSearching = false;
 
-  // LOGIC PENCARIAN SAKTI (SUDAH DITAMBAH GATEKEEPING)
   Future<void> _performSearch(String query) async {
     if (query.isEmpty) {
       setState(() {
-        _searchResults = [];
+        _daiResults = [];
+        _kajianResults = [];
         _isSearching = false;
       });
       return;
@@ -34,18 +39,26 @@ class _ExploreScreenState extends State<ExploreScreen> {
     });
 
     try {
-      // KITA CARI DI VIEW 'kajian_lengkap' (Bukan tabel kajian biasa)
-      // Syntax .or() biar bisa cari di Judul ATAU Nama Dai ATAU Kategori
-      final response = await Supabase.instance.client
+      // 1. CARI DA'I (Berani nampil walau belum ada kajian)
+      final daiResponse = await Supabase.instance.client
+          .from('dais')
+          .select()
+          .ilike('name', '%$query%')
+          .limit(5);
+
+      // 2. CARI KAJIAN (Gatekeeping status approved tetep jalan)
+      final kajianResponse = await Supabase.instance.client
           .from('kajian_lengkap')
           .select()
-          .eq('status', 'approved') // <--- FILTER GATEKEEPING BIAR AMAN DARI HOAKS
+          .eq('status', 'approved')
           .or('title.ilike.%$query%, dai_name.ilike.%$query%, category.ilike.%$query%')
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .limit(10);
 
       if (mounted) {
         setState(() {
-          _searchResults = List<Map<String, dynamic>>.from(response);
+          _daiResults = List<Map<String, dynamic>>.from(daiResponse);
+          _kajianResults = List<Map<String, dynamic>>.from(kajianResponse);
           _isLoading = false;
         });
       }
@@ -59,9 +72,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
-      extendBodyBehindAppBar: true, // WAJIB ADA BIAR BLUR-NYA JALAN
+      extendBodyBehindAppBar: true, 
       
-      // --- HEADER GLASSMORPHISM ---
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -76,10 +88,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         title: Text(
           'SANADFLOW', 
           style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w300, 
-            letterSpacing: 4, 
-            fontSize: 20, 
-            color: Colors.white
+            fontWeight: FontWeight.w300, letterSpacing: 4, fontSize: 20, color: Colors.white
           )
         ),
       ),
@@ -92,21 +101,19 @@ class _ExploreScreenState extends State<ExploreScreen> {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  Text("Jelajah Kajian", style: GoogleFonts.poppins(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  // 🔥 GANTI JUDUL BIAR LEBIH KEREN 🔥
+                  Text("Eksplorasi Ilmu", style: GoogleFonts.poppins(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 20),
                   TextField(
                     controller: _searchController,
                     style: const TextStyle(color: Colors.white),
                     onChanged: (val) {
-                      // Debounce sederhana (tunggu user selesai ngetik dikit)
                       Future.delayed(const Duration(milliseconds: 500), () {
-                        if (val == _searchController.text) {
-                          _performSearch(val);
-                        }
+                        if (val == _searchController.text) _performSearch(val);
                       });
                     },
                     decoration: InputDecoration(
-                      hintText: "Cari judul, ustadz, atau topik...",
+                      hintText: "Cari Ustadz, judul kajian, topik...",
                       hintStyle: TextStyle(color: Colors.grey[600]),
                       prefixIcon: const Icon(LucideIcons.search, color: Colors.grey),
                       suffixIcon: _searchController.text.isNotEmpty 
@@ -124,52 +131,91 @@ class _ExploreScreenState extends State<ExploreScreen> {
               ),
             ),
 
-            // HASIL PENCARIAN
+            // HASIL PENCARIAN (MULTI-SECTION)
             Expanded(
               child: _isLoading 
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFF2962FF)))
-                : _searchResults.isEmpty 
-                  ? (_isSearching 
-                      ? _buildEmptyState() // Kalau nyari tapi gak ketemu
-                      : _buildCategoryGrid()) // Kalau belum nyari (Tampilin Kategori)
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: _searchResults.length,
-                      itemBuilder: (context, index) {
-                        final item = _searchResults[index];
-                        return Card(
-                          color: const Color(0xFF1E1E1E),
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: ListTile(
-                            leading: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: item['thumbnail_url'] != null
-                                ? Image.network(item['thumbnail_url'], width: 60, height: 60, fit: BoxFit.cover)
-                                : Container(width: 60, height: 60, color: Colors.black),
-                            ),
-                            title: Text(item['title'] ?? 'Tanpa Judul', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-                            subtitle: Text(item['dai_name'] ?? 'Ustadz', style: GoogleFonts.poppins(color: Colors.grey, fontSize: 12)),
-                            onTap: () {
-                              Navigator.push(context, MaterialPageRoute(builder: (context) => VideoDetailScreen(videoData: {
-                                   'title': item['title'],
-                                   'author': item['dai_name'],
-                                   'video_url': item['video_url'],
-                                   'img': item['thumbnail_url'],
-                                   'desc': item['description'],
-                                   'dai_id': item['dai_id'],
-                                   'id': item['id'],
-                                   'dai_avatar': item['dai_avatar'], // Penting buat profil
-                                   'is_verified': item['is_verified'], 
-                                   'source_account_name': item['source_account_name'],
-                              })));
-                            },
-                          ),
-                        );
-                      },
-                    ),
+                : (!_isSearching)
+                  ? _buildCategoryGrid() 
+                  : (_daiResults.isEmpty && _kajianResults.isEmpty)
+                    ? _buildEmptyState()
+                    : ListView(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        children: [
+                          // SECTION 1: PROFIL DA'I
+                          if (_daiResults.isNotEmpty) ...[
+                            Text("Profil Penceramah", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 10),
+                            ..._daiResults.map((dai) => _buildDaiCard(dai)),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // SECTION 2: VIDEO KAJIAN
+                          if (_kajianResults.isNotEmpty) ...[
+                            Text("Video Kajian", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 10),
+                            ..._kajianResults.map((kajian) => _buildKajianCard(kajian)),
+                          ],
+                        ],
+                      ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // WIDGET CARD UNTUK DA'I
+  Widget _buildDaiCard(Map<String, dynamic> dai) {
+    return Card(
+      color: const Color(0xFF1A1A2E), // Warna beda dikit biar gampang bedain sama video
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFF2962FF), width: 0.5)),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Colors.grey[800],
+          backgroundImage: dai['avatar_url'] != null ? NetworkImage(dai['avatar_url']) : null,
+          child: dai['avatar_url'] == null ? const Icon(LucideIcons.user, color: Colors.white) : null,
+        ),
+        title: Row(
+          children: [
+            Flexible(child: Text(dai['name'] ?? 'Ustadz', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
+            if (dai['is_verified'] == true) ...[const SizedBox(width: 4), const Icon(Icons.verified, color: Colors.blueAccent, size: 14)]
+          ],
+        ),
+        subtitle: Text("Lihat Profil & Sanad", style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 11)),
+        trailing: const Icon(LucideIcons.chevronRight, color: Colors.grey, size: 16),
+        onTap: () {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => DaiProfileScreen(
+            daiId: dai['id'], daiName: dai['name'], daiAvatar: dai['avatar_url']
+          )));
+        },
+      ),
+    );
+  }
+
+  // WIDGET CARD UNTUK KAJIAN (Mirip kayak yang sebelumnya)
+  Widget _buildKajianCard(Map<String, dynamic> item) {
+    return Card(
+      color: const Color(0xFF1E1E1E),
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: item['thumbnail_url'] != null
+            ? Image.network(item['thumbnail_url'], width: 60, height: 60, fit: BoxFit.cover)
+            : Container(width: 60, height: 60, color: Colors.black),
+        ),
+        title: Text(item['title'] ?? 'Tanpa Judul', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text(item['dai_name'] ?? 'Ustadz', style: GoogleFonts.poppins(color: Colors.grey, fontSize: 12)),
+        onTap: () {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => VideoDetailScreen(videoData: {
+                'title': item['title'], 'author': item['dai_name'], 'video_url': item['video_url'],
+                'img': item['thumbnail_url'], 'desc': item['description'], 'dai_id': item['dai_id'],
+                'id': item['id'], 'dai_avatar': item['dai_avatar'], 'is_verified': item['is_verified'], 
+                'source_account_name': item['source_account_name'],
+          })));
+        },
       ),
     );
   }
@@ -191,7 +237,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: 20),
-          child: Text("Telusuri Topik", style: GoogleFonts.poppins(color: Colors.grey)),
+          child: Text("Telusuri Topik Populer", style: GoogleFonts.poppins(color: Colors.grey)),
         ),
         Wrap(
           spacing: 12, runSpacing: 12,

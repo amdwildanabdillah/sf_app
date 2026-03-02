@@ -119,7 +119,7 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
         backgroundColor: const Color(0xFF121212),
         appBar: AppBar(backgroundColor: const Color(0xFF121212), elevation: 0, leading: const BackButton(color: Colors.white), title: Text("Profil Penceramah", style: GoogleFonts.poppins(color: Colors.white, fontSize: 16))),
         
-        // --- FOOTER (SOSMED AMAN DARI POLICE LINE) ---
+        // --- FOOTER ---
         bottomNavigationBar: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           decoration: const BoxDecoration(color: Color(0xFF1A1A1A), border: Border(top: BorderSide(color: Colors.white10))),
@@ -128,8 +128,6 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
               children: [
                 Text("Connect:", style: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(width: 8),
-                
-                // SOSMED BISA DI-SCROLL KE SAMPING KALAU KEPENUHAN
                 Expanded(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -144,7 +142,6 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
                     ),
                   ),
                 ),
-                
                 TextButton.icon(
                   style: TextButton.styleFrom(foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 12)),
                   icon: const Icon(LucideIcons.users, size: 16), label: Text("Fanbase", style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600)),
@@ -157,7 +154,7 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
 
         body: Column(
           children: [
-            // --- HEADER FIXED (NAMA AMAN DARI POLICE LINE) ---
+            // --- HEADER FIXED ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               child: Column(
@@ -172,21 +169,29 @@ class _DaiProfileScreenState extends State<DaiProfileScreen> {
                           child: _daiData?['avatar_url'] == null ? const Icon(LucideIcons.user, size: 40, color: Colors.white) : null,
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                _daiData?['name'] ?? widget.daiName, 
-                                style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            if (_daiData?['is_verified'] == true) ...[
-                              const SizedBox(width: 6), const Icon(Icons.verified, color: Colors.blueAccent, size: 18),
-                            ]
-                          ],
+                        
+                        // 🔥 INI DIA JURUS SAKTI (ANTI CENTANG BIRU TERBANG) 🔥
+                        RichText(
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          text: TextSpan(
+                            text: _daiData?['name'] ?? widget.daiName,
+                            style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                            children: [
+                              if (_daiData?['is_verified'] == true)
+                                const WidgetSpan(
+                                  alignment: PlaceholderAlignment.middle,
+                                  child: Padding(
+                                    padding: EdgeInsets.only(left: 6.0),
+                                    child: Icon(Icons.verified, color: Colors.blueAccent, size: 20), // Size ikon disesuaikan dikit
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
+                        // 🔥 AKHIR JURUS SAKTI 🔥
+
                       ],
                     ),
                   ),
